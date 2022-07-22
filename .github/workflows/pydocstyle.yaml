@@ -3,7 +3,7 @@ name: Pydocstyle
 on: [push]
 
 jobs:
-  pydoc-lint:
+  pydocstyle:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2

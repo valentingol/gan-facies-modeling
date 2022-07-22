@@ -3,7 +3,7 @@ name: Flake 8
 on: [push]
 
 jobs:
-  flake-lint:
+  flake8:
     runs-on: ubuntu-latest
     name: Flake Lint
     steps:
