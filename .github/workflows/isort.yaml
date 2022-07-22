@@ -3,7 +3,7 @@ name: Isort
 on: [push]
 
 jobs:
-  isort-lint:
+  isort:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
