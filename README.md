@@ -8,7 +8,6 @@ Facies Modeling with GANs
 [![GitHub User followers](https://img.shields.io/github/followers/valentingol?label=User%20followers&style=social)](https://github.com/valentingol)
 [![GitHub User's User stars](https://img.shields.io/github/stars/valentingol?label=User%20Stars&style=social)](https://github.com/valentingol)
 
-[![Pycodestyle](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pycodestyle.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pycodestyle.yaml)
 [![Flake8](https://github.com/valentingol/gan-facies-modeling/actions/workflows/flake.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/flake.yaml)
 [![Pydocstyle](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pydocstyle.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pydocstyle.yaml)
 [![MyPy](https://github.com/valentingol/gan-facies-modeling/actions/workflows/mypy.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/mypy.yaml)
