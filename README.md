@@ -12,7 +12,5 @@ Facies Modeling with GANs
 [![MyPy](https://github.com/valentingol/gan-facies-modeling/actions/workflows/mypy.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/mypy.yaml)
 [![Isort](https://github.com/valentingol/gan-facies-modeling/actions/workflows/isort.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/isort.yaml)
 [![PyLint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valentingol/106c646ac67294657bccf02bbe22208f/raw/gan_facies_modeling_pylint.json)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pylint.yaml)
-[![Tests](https://github.com/valentingol/gan-facies-modeling/actions/workflows/tests.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/tests.yaml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valentingol/106c646ac67294657bccf02bbe22208f/raw/gan_facies_modeling_coverage.json)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/tests.yaml)
 
 🚧
