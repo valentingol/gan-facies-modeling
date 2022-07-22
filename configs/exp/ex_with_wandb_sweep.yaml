@@ -1,0 +1,17 @@
+# Overwrite default configs
+run_name: run_wandb_sweep
+config_save_path: configs/runs/run_wandb_sweep
+dataset_path: datasets/gansim_small.npy
+num_workers: 2
+
+training.total_time: 120
+training.sample_step: 200
+training.model_save_step: 200
+
+wandb.use_wandb: True
+wandb.entity: null
+wandb.project: test_sagan_with_wandb_and_sweep
+wandb.mode: online
+
+# Add a sweep
+wandb.sweep_config_path: configs/sweep/ex_sweep.yaml

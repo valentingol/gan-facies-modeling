@@ -1,0 +1,19 @@
+--- !training
+batch_size: 64
+adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
+# d_iters: number of time to train discriminator each time generator is trained
+d_iters: 1
+g_lr: 0.0001
+d_lr: 0.0004
+# lambda_gp: gradient penalty factor in the loss
+lambda_gp: 10.0
+beta1: 0.0
+beta2: 0.9
+weight_decay: 0.0
+
+# Step sizes
+total_step: 100000
+total_time: -1  # in sec, < 0 means no time limit
+log_step: 10
+sample_step: 400  # save generated images every n steps
+model_save_step: 1200  # save generator and discriminator every n steps

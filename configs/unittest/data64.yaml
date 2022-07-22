@@ -1,0 +1,14 @@
+# Use for unit tests (DO NOT DELETE if you want to run the unit tests)
+run_name: tmp_test
+config_save_path: configs/runs/tmp_test/config
+dataset_path: null  # use custom simple dataset instead
+save_attn: True
+
+wandb.use_wandb: False
+
+training.total_step: 2
+training.log_step: 1
+training.sample_step: 2
+training.model_save_step: 2
+
+model.data_size: 64

@@ -1,0 +1,14 @@
+sweep:
+  method: bayes
+  metric:
+    name: sum_losses
+    goal: minimize
+  parameters:
+    training.g_lr:
+      distribution: log_uniform_values
+      min: 0.00001
+      max: 0.001
+    training.d_lr:
+      distribution: log_uniform_values
+      min: 0.00004
+      max: 0.004
