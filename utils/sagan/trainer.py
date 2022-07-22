@@ -273,7 +273,7 @@ class TrainerSAGAN():
             weight_decay=config.training.weight_decay,
         )
 
-    def load_pretrained_model(self, step) -> None:
+    def load_pretrained_model(self, step: int) -> None:
         """Load pre-trained model."""
         self.gen.load_state_dict(
             torch.load(

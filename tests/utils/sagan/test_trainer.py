@@ -27,7 +27,9 @@ def data_loaders() -> Tuple[DataLoader, DataLoader]:
     return data_loader_32, data_loader_64
 
 
-def build_trainers(data_loaders) -> Tuple[TrainerSAGAN, TrainerSAGAN]:
+def build_trainers(
+    data_loaders: Tuple[DataLoader, DataLoader]
+) -> Tuple[TrainerSAGAN, TrainerSAGAN]:
     """Return trainers with data size 32 and 64."""
     config32 = GlobalConfig().build_from_argv(
         fallback='configs/unittest/data32.yaml')
