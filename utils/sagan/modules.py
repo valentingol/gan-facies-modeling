@@ -1,3 +1,5 @@
+# Code adapted from https://github.com/heykeetae/Self-Attention-GAN
+
 """Modules for SAGAN model."""
 
 from typing import List, Optional, Tuple

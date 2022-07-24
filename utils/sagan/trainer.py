@@ -1,3 +1,5 @@
+# Code adapted from https://github.com/heykeetae/Self-Attention-GAN
+
 """Training class for SAGAN."""
 
 import os

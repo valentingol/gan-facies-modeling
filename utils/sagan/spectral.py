@@ -1,3 +1,5 @@
+# Code adapted from https://github.com/heykeetae/Self-Attention-GAN
+
 """Spectral normalization class."""
 
 from typing import Mapping, Optional, Tuple
