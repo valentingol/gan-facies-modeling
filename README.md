@@ -100,6 +100,7 @@ Two examples (using wandb without and with sweep) are available in `configs/exp`
 
 ## TODO list
 
+- [ ] Add test for generator in `apps/train.py`
 - [ ] Add generated results on GANSim dataset and [Stanford VI dataset](https://github.com/SCRFpublic/Stanford-VI-E/tree/master/Facies) (in progress 🚧)
 - [ ] Add conditional SAGAN
 - [ ] Add 3D models
