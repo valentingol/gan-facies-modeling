@@ -1,7 +1,8 @@
 --- !wandb
 use_wandb: False
-entity: null
 project: null # (should be overwritten by the experiment config if use_wandb is True)
+entity: null
+group: null
 mode: online
 
 sweep_config_path: null  # null to not sweep (note: 'program' argument is not required)
