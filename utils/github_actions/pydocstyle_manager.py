@@ -11,7 +11,7 @@ def check_output() -> None:
     ValueError
         If Pydocstyle find errors.
     """
-    args = sys.argv[1:]
+    args = sys.argv
     for arg in args:
         if arg.startswith('--n_errors='):
             n_errors = int(arg.split('=')[1])

@@ -1,6 +1,6 @@
 """Modules for SAGAN model."""
 
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -8,7 +8,7 @@ from torch import nn
 
 from utils.sagan.spectral import SpectralNorm
 
-TensorWithAttn = Tuple[torch.Tensor, list[torch.Tensor]]
+TensorWithAttn = Tuple[torch.Tensor, List[torch.Tensor]]
 
 
 class SelfAttention(nn.Module):
