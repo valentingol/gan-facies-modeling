@@ -65,7 +65,7 @@ def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
         assert osp.exists('res/tmp_test/models/generator_step_2.pth')
         assert osp.exists('res/tmp_test/models/discriminator_step_2.pth')
         assert osp.exists('res/tmp_test/samples/images_step_2.png')
-        assert osp.exists('res/tmp_test/attention/gen_attn0_step_2.npy')
+        assert osp.exists('res/tmp_test/attention/gen_attn_step_2/attn_0.npy')
         # Remove tmp folders
         shutil.rmtree('res/tmp_test')
 

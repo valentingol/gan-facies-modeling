@@ -14,8 +14,7 @@ def test_check_output() -> None:
     sys.argv = ['--n_errors=0']
     check_output()
     sys.argv = ['--n_errors=1']
-    with pytest.raises(ValueError,
-                       match='.*found 1 error.*'):
+    with pytest.raises(ValueError, match='.*found 1 error.*'):
         check_output()
     sys.argv = old_argv
 

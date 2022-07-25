@@ -1,11 +1,11 @@
 """Color utils for GitHub actions."""
+
 from colorsys import hsv_to_rgb
 
 
-def score_to_hex_color(
-        score: float, score_min: float, score_max: float
-        ) -> str:
-    """Convert score to hex color red > brightgreen."""
+def score_to_hex_color(score: float, score_min: float,
+                       score_max: float) -> str:
+    """Convert score to hex color red -> bright green."""
     norm_score = max(0, (score-score_min) / (score_max-score_min))
     hsv = (1 / 3 * norm_score, 1, 1)
     rgb = hsv_to_rgb(*hsv)

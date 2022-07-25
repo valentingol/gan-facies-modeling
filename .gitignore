@@ -7,3 +7,5 @@
 configs/runs/
 res/
 wandb/
+
+**tmp**
