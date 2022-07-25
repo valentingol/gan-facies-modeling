@@ -86,4 +86,5 @@ def main() -> None:
 if __name__ == '__main__':
     global_config = GlobalConfig.build_from_argv(
         fallback='configs/exp/base.yaml')
+    global_config.save(global_config.config_save_path)
     main()
