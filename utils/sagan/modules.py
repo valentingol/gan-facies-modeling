@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from utils.data.process import color_data_np
 from utils.sagan.spectral import SpectralNorm
 
 TensorWithAttn = Tuple[torch.Tensor, List[torch.Tensor]]
@@ -230,3 +231,16 @@ class SAGenerator(nn.Module):
         x = self.conv_last(x)
         x = nn.Softmax(dim=1)(x)
         return x, att_list
+
+    def generate(self, z_input: torch.Tensor,
+                 with_attn: bool = False) -> Tuple[np.ndarray,
+                                                   List[torch.Tensor]]:
+        """Return generated images and eventually attention list."""
+        out, attn_list = self.forward(z_input)
+        # Quantize + color generated data
+        out = torch.argmax(out, dim=1)
+        out = out.detach().cpu().numpy()
+        images = color_data_np(out)
+        if with_attn:
+            return images, attn_list
+        return images, []
