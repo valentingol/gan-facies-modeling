@@ -1,4 +1,11 @@
+flake8==4.0.1
+isort==5.10.1
+mypy==0.971
 Pillow==9.2.0
+pydocstyle==6.1.1
+pylint==2.14.5
+pylint-django==2.5.3
+pytest-cov==3.0.0
 --extra-index-url=https://gitlab.com/api/v4/projects/26449469/packages/pypi/simple
 rr_ml_config==1.9.1
 scikit_image==0.19.3
