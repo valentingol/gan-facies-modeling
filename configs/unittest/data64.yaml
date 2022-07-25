@@ -4,11 +4,13 @@ config_save_path: configs/runs/tmp_test/config
 dataset_path: null  # use custom simple dataset instead
 save_attn: True
 
-wandb.use_wandb: False
-
-training.total_step: 2
-training.log_step: 1
-training.sample_step: 2
-training.model_save_step: 2
-
 model.data_size: 64
+
+training.adv_loss: wgan-gp
+training.batch_size: 2
+training.log_step: 1
+training.model_save_step: 2
+training.sample_step: 2
+training.total_step: 2
+
+wandb.use_wandb: False
