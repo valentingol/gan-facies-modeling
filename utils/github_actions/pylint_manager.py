@@ -1,4 +1,5 @@
 """Manage Pylint output on workflow."""
+
 import sys
 from typing import Tuple
 
@@ -26,10 +27,8 @@ def check_output() -> Tuple[float, float]:
             score_min = float(arg.split('=')[1])
 
     if score < score_min:
-        raise ValueError(
-                f'Pylint score {score} is lower than '
-                f'minimum ({score_min}).'
-                )
+        raise ValueError(f'Pylint score {score} is lower than '
+                         f'minimum ({score_min}).')
 
     return score, score_min
 

@@ -1,4 +1,5 @@
 """Tests for utils/config.py."""
+
 import sys
 
 from utils.configs import GlobalConfig
