@@ -2,13 +2,13 @@
 run_name: null  # (should be overwritten by the experiment config)
 config_save_path: null # (should be overwritten by the experiment config)
 dataset_path: null  # (should be overwritten by the experiment config)
-train: True  # if False, analyse a recovered model (see recover_model_step)
 use_wandb: False
 recover_model_step: 0  # the step to recover the model, 0 to not recover
 save_attn: False
 # num_workers: number of worker to process the data in parallel
 # (0 to not apply parallelism)
 num_workers: 0
+test_batch_size: 64
 
 # Additional configs
 model_config_path: configs/default/model.yaml
