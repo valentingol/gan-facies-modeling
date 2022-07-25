@@ -56,3 +56,9 @@ def test_sa_generator() -> None:
     assert len(att_list) == 2
     assert att_list[0].shape == (1, 256, 256)
     assert att_list[1].shape == (1, 1024, 1024)
+    # Test generate method
+    images, _ = gen.generate(z, with_attn=True)
+    assert images.shape == (1, 64, 64, 3)
+    images, attn_list = gen.generate(z, with_attn=False)
+    assert images.shape == (1, 64, 64, 3)
+    assert not attn_list
