@@ -5,8 +5,10 @@ dataset_path: null  # use custom simple dataset instead
 save_attn: True
 
 model.data_size: 64
+model.full_values: False
 
 training.adv_loss: wgan-gp
+
 training.batch_size: 2
 training.log_step: 1
 training.model_save_step: 2
