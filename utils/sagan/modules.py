@@ -15,20 +15,45 @@ TensorWithAttn = Tuple[torch.Tensor, List[torch.Tensor]]
 
 
 class SelfAttention(nn.Module):
-    """Self attention Layer."""
+    """Self attention Layer.
 
-    def __init__(self, in_dim: int, qk_dim: Optional[int] = None) -> None:
+    Parameters
+    ----------
+    in_dim : int
+        Input feature map dimension (channels).
+    att_dim : int, optional
+        Attention map dimension for each query and key
+        (and value if full_values is False). By default, in_dim // 8.
+    full_values : bool, optional
+        Whether to have value dimension equal to full dimension (in_dim)
+        or reduced to in_dim // 2. In the latter case, the output of the
+        attention is projected to full dimension by an additional
+        1*1 convolution. By default, True.
+    """
+
+    def __init__(self, in_dim: int, att_dim: Optional[int] = None,
+                 full_values: bool = True) -> None:
         super().__init__()
         self.chanel_in = in_dim
         # By default, query and key dimensions are input dim / 8.
-        qk_dim = in_dim // 8 if qk_dim is None else qk_dim
+        att_dim = in_dim // 8 if att_dim is None else att_dim
 
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=qk_dim,
+        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=att_dim,
                                     kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=qk_dim,
+        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=att_dim,
                                   kernel_size=1)
-        self.value_conv = nn.Conv2d(in_channels=in_dim, out_channels=in_dim,
-                                    kernel_size=1)
+        if full_values:
+            self.value_conv = nn.Conv2d(in_channels=in_dim,
+                                        out_channels=in_dim,
+                                        kernel_size=1)
+            self.out_conv = None
+        else:
+            self.value_conv = nn.Conv2d(in_channels=in_dim,
+                                        out_channels=in_dim // 2,
+                                        kernel_size=1)
+            self.out_conv = nn.Conv2d(in_channels=in_dim // 2,
+                                      out_channels=in_dim,
+                                      kernel_size=1)
         # gamma: learned scale factor for residual connection
         self.gamma = nn.Parameter(torch.zeros(1))
 
@@ -49,16 +74,19 @@ class SelfAttention(nn.Module):
         """
         batch_size, _, width, height = x.size()
         queries = self.query_conv(x).view(batch_size, -1, width * height)
-        queries = queries.permute(0, 2, 1)  # (B, W*H~query, C)
+        queries = queries.permute(0, 2, 1)  # (B, W*H~query, Cqk)
         keys = self.key_conv(x).view(batch_size, -1,
-                                     width * height)  # (B, C, W*H~key)
+                                     width * height)  # (B, Cqk, W*H~key)
         unnorm_attention = torch.bmm(queries, keys)  # (B, W*H~query, W*H~key)
         attention = nn.Softmax(dim=-1)(unnorm_attention)
         values = self.value_conv(x).view(batch_size, -1,
-                                         width * height)  # (B, C, W*H)
+                                         width * height)  # (B, Cv, W*H~value)
 
-        out = torch.bmm(values, attention.permute(0, 2, 1))  # (B, C, W*H)
-        out = out.view(batch_size, -1, width, height)  # (B, C, W, H)
+        out = torch.bmm(values, attention.permute(0, 2, 1))  # (B, Cv, W*H)
+        out = out.view(batch_size, -1, width, height)  # (B, Cv, W, H)
+
+        if self.out_conv is not None:
+            out = self.out_conv(out)
 
         out = self.gamma * out + x
 
@@ -69,7 +97,7 @@ class SADiscriminator(nn.Module):
     """Self-attention discriminator."""
 
     def __init__(self, n_classes: int, data_size: int = 64,
-                 conv_dim: int = 64) -> None:
+                 conv_dim: int = 64, full_values: bool = True) -> None:
         super().__init__()
         self.n_classes = n_classes
         self.data_size = data_size
@@ -85,14 +113,15 @@ class SADiscriminator(nn.Module):
         self.conv3 = self._make_disc_block(current_dim, current_dim * 2,
                                            kernel_size=4, stride=2, padding=1)
 
-        self.attn1 = SelfAttention(current_dim * 2)
+        self.attn1 = SelfAttention(current_dim * 2, full_values=full_values)
 
         if self.data_size == 64:
             current_dim = current_dim * 2
             self.conv4 = self._make_disc_block(current_dim, current_dim * 2,
                                                kernel_size=4, stride=2,
                                                padding=1)
-            self.attn2 = SelfAttention(current_dim * 2)
+            self.attn2 = SelfAttention(current_dim * 2,
+                                       full_values=full_values)
 
         current_dim = current_dim * 2
         self.conv_last = nn.Sequential(
@@ -151,7 +180,7 @@ class SAGenerator(nn.Module):
     """Self-attention generator."""
 
     def __init__(self, n_classes: int, data_size: int = 64, z_dim: int = 128,
-                 conv_dim: int = 64) -> None:
+                 conv_dim: int = 64, full_values: bool = True) -> None:
         super().__init__()
         self.n_classes = n_classes
         self.data_size = data_size
@@ -170,14 +199,15 @@ class SAGenerator(nn.Module):
         self.conv3 = self._make_gen_block(current_dim, current_dim // 2,
                                           kernel_size=4, stride=2, padding=1)
 
-        self.attn1 = SelfAttention(current_dim // 2)
+        self.attn1 = SelfAttention(current_dim // 2, full_values=full_values)
 
         if self.data_size == 64:
             current_dim = current_dim // 2
             self.conv4 = self._make_gen_block(current_dim, current_dim // 2,
                                               kernel_size=4, stride=2,
                                               padding=1)
-            self.attn2 = SelfAttention(current_dim // 2)
+            self.attn2 = SelfAttention(current_dim // 2,
+                                       full_values=full_values)
 
         current_dim = current_dim // 2
 

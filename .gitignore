@@ -4,6 +4,9 @@
 **/__pycache__/**
 **.pyc
 
+datasets/
+!datasets/gansim_small.npy
+
 configs/runs/
 res/
 wandb/

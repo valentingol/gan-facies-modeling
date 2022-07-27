@@ -7,10 +7,12 @@ save_attn: True
 model.data_size: 32
 
 training.adv_loss: hinge
+training.g_ema_decay: 0.999
+
 training.batch_size: 2
 training.log_step: 1
 training.model_save_step: 2
 training.sample_step: 2
-training.total_step: 2
+training.total_step: 6
 
 wandb.use_wandb: False

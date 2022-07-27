@@ -2,10 +2,11 @@
 
 """Training class for SAGAN."""
 
+import copy
 import os
 import os.path as osp
 import time
-from typing import Mapping, Optional
+from typing import List, Mapping, Optional
 
 import numpy as np
 import torch
@@ -53,6 +54,10 @@ class TrainerSAGAN():
         if config.recover_model_step > 0:
             self.load_pretrained_model(config.recover_model_step)
 
+        # EMA model if required
+        if config.training.g_ema_decay < 1.0:
+            self.gen_ema = copy.deepcopy(self.gen)
+
         # Fixed input for sampling
         self.fixed_z = torch.randn(config.training.batch_size,
                                    config.model.z_dim).cuda()
@@ -79,6 +84,15 @@ class TrainerSAGAN():
         g_loss.backward()
         self.g_optimizer.step()
 
+        ema_decay = self.config.training.g_ema_decay
+        if ema_decay < 1.0:  # Apply EMA on generator
+            for (_, old_param), (_, new_param) \
+                in zip(self.gen_ema.named_parameters(),
+                       self.gen.named_parameters()):
+                old_param_d = old_param.data.clone()
+                new_param_d = new_param.data.clone()
+                new_param.data.copy_(ema_decay * old_param_d
+                                     + (1.0-ema_decay) * new_param_d)
         return losses
 
     def train_discriminator(
@@ -221,8 +235,14 @@ class TrainerSAGAN():
                                            self.config.training.total_step)
         step_spaces = ' ' * (len(str(self.config.training.total_step))
                              - len(str(step + 1)))
+        avg_gammas = []
+        attn_id = 1
 
-        avg_gamma1 = np.abs(self.gen.attn1.gamma.mean().item())
+        while hasattr(self.gen, f'attn{attn_id}'):
+            avg_gamma = getattr(self.gen, f'attn{attn_id}').gamma
+            avg_gamma = torch.abs(avg_gamma).mean().item()
+            avg_gammas.append(avg_gamma)
+            attn_id += 1
 
         print(
             f"Step {step_spaces}{step + 1}/"
@@ -232,29 +252,31 @@ class TrainerSAGAN():
             f"D_loss: {losses['d_loss'].item():6.2f} | "
             f"D_loss_real: {losses['d_loss_real'].item():6.2f} | ", end='')
         if self.config.training.adv_loss == 'wgan-gp':
-            print(f"D_loss_gp: {losses['d_loss_gp'].item():6.2f} | ", end='')
-        print(f"avg gamma(s): {avg_gamma1:5.3f}", end='')
-
-        if hasattr(self.gen, 'attn2'):
-            avg_gamma2 = np.abs(self.gen.attn2.gamma.mean().item())
-            print(f" - {avg_gamma2:5.3f}")
-        else:
-            print()
+            print(f"D_loss_gp: {losses['d_loss_gp'].item():5.2f} | ", end='')
+        print("avg gamma(s): ", end='')
+        for i, avg_gamma in enumerate(avg_gammas):
+            if i != 0:
+                print(' - ', end='')
+            print(f"{avg_gamma:5.3f}", end='')
+        print()
 
         if self.config.wandb.use_wandb:
-            logs = {
-                'sum_losses':
-                (losses['g_loss'].item() + losses['d_loss'].item()),
-                'g_loss': losses['g_loss'].item(),
-                'd_loss': losses['d_loss'].item(),
-                'd_loss_real': losses['d_loss_real'].item(),
-                'avg_gamma1': avg_gamma1
-            }
-            if hasattr(self.gen, 'attn2'):
-                logs['avg_gamma2'] = avg_gamma2
-            if 'd_loss_gp' in losses:
-                logs['d_loss_gp'] = losses['d_loss_gp'].item()
+            logs = self.get_log_for_wandb(metrics=losses,
+                                          avg_gammas=avg_gammas)
             wandb.log(logs)
+
+    def get_log_for_wandb(self, metrics: Mapping[str, torch.Tensor],
+                          avg_gammas: List[float]) -> Mapping[str, float]:
+        """Get dict logs from metrics and gammas for wandb."""
+        logs = {
+            'sum_losses':
+            (metrics['g_loss'].item() + metrics['d_loss'].item()),
+        }
+        for metric_name, metric in metrics.items():
+            logs[metric_name] = metric.item()
+        for i, avg_gamma in enumerate(avg_gammas):
+            logs[f'avg_gamma{i + 1}'] = avg_gamma
+        return logs
 
     def reset_grad(self) -> None:
         """Reset the optimizer gradient buffers."""
@@ -267,10 +289,14 @@ class TrainerSAGAN():
         self.gen = SAGenerator(n_classes=self.n_classes,
                                data_size=config.model.data_size,
                                z_dim=config.model.z_dim,
-                               conv_dim=config.model.g_conv_dim).cuda()
+                               conv_dim=config.model.g_conv_dim,
+                               full_values=config.model.full_values
+                               ).cuda()
         self.disc = SADiscriminator(n_classes=self.n_classes,
                                     data_size=config.model.data_size,
-                                    conv_dim=config.model.d_conv_dim).cuda()
+                                    conv_dim=config.model.d_conv_dim,
+                                    full_values=config.model.full_values
+                                    ).cuda()
 
         self.g_optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad,

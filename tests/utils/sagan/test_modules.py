@@ -19,8 +19,9 @@ def test_self_attention() -> None:
 
 def test_sa_discriminator() -> None:
     """Test SADiscriminator."""
-    # data_size = 32, batch_size = 5
-    disc = SADiscriminator(n_classes=4, data_size=32, conv_dim=64)
+    # data_size = 32, batch_size = 5, full_values = False
+    disc = SADiscriminator(n_classes=4, data_size=32, conv_dim=64,
+                           full_values=False)
     x = torch.rand(size=(5, 4, 32, 32), dtype=torch.float32)
     x = x / torch.sum(x, dim=1, keepdim=True)  # normalize
     preds, att_list = disc(x)
@@ -28,8 +29,9 @@ def test_sa_discriminator() -> None:
     assert att_list[0].shape == (5, 16, 16)
     assert preds.shape == (5,)
 
-    # data_size = 64, batch_size = 1
-    disc = SADiscriminator(n_classes=4, data_size=64, conv_dim=64)
+    # data_size = 64, batch_size = 1, full_values = True
+    disc = SADiscriminator(n_classes=4, data_size=64, conv_dim=64,
+                           full_values=True)
     x = torch.rand(size=(1, 4, 64, 64), dtype=torch.float32)
     x = x / torch.sum(x, dim=1, keepdim=True)  # normalize
     preds, att_list = disc(x)
