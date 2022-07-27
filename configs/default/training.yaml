@@ -2,6 +2,7 @@
 batch_size: 64
 adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
 # d_iters: number of time to train discriminator each time generator is trained
+g_ema_decay: 1.0  # decay of generator's exponential moving average (1.0 = no decay)
 d_iters: 1
 g_lr: 0.0001
 d_lr: 0.0004
