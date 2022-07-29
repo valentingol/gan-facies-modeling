@@ -6,7 +6,7 @@ import copy
 import os
 import os.path as osp
 import time
-from typing import List, Mapping, Optional
+from typing import List, Mapping
 
 import numpy as np
 import torch
@@ -41,6 +41,14 @@ class TrainerSAGAN():
 
         # Config
         self.config = config
+
+        # Attributes that will be overwritten when the train will start:
+        self.step = -1
+        self.start_time = 0.0
+        self.start_step = -1
+
+        self.total_time = config.training.total_time
+        self.total_step = config.training.total_step
 
         # Paths
         run_name = config.run_name
@@ -85,7 +93,9 @@ class TrainerSAGAN():
         self.g_optimizer.step()
 
         ema_decay = self.config.training.g_ema_decay
-        if ema_decay < 1.0:  # Apply EMA on generator
+        ema_start_step = self.config.training.ema_start_step
+        if ema_decay < 1.0 and ema_start_step <= self.step:
+            # Apply EMA on generator
             for (_, old_param), (_, new_param) \
                 in zip(self.gen_ema.named_parameters(),
                        self.gen.named_parameters()):
@@ -176,14 +186,14 @@ class TrainerSAGAN():
         data_iter = iter(self.data_loader)
 
         # Start with trained model
-        start_step = (config.recover_model_step
-                      + 1 if config.recover_model_step > 0 else 0)
+        self.start_step = (config.recover_model_step
+                           + 1 if config.recover_model_step > 0 else 0)
 
         # Start time
-        start_time = time.time()
+        self.start_time = time.time()
 
-        for step in range(start_step, config.training.total_step):
-
+        for step in range(self.start_step, self.total_step):
+            self.step = step
             # Train Discriminator
             for _ in range(config.training.d_iters):
                 self.disc.train()
@@ -210,17 +220,17 @@ class TrainerSAGAN():
 
             # Print out log info
             if (step+1) % config.training.log_step == 0:
-                self.log(start_time, start_step, step, losses)
+                self.log(losses)
 
             # Sample data
             if (step+1) % config.training.sample_step == 0:
-                self.save_sample_and_attention(step + 1)
+                self.save_sample_and_attention()
 
             if (step+1) % config.training.model_save_step == 0:
-                self.save_models(step=step + 1)
+                self.save_models()
 
-            if (config.training.total_time >= 0 and
-                    time.time() - start_time >= config.training.total_time):
+            if (self.total_time >= 0
+                    and time.time() - self.start_time >= self.total_time):
                 print('Maximum time reached (note: total training time is '
                       'set in config.training.total_time).')
                 break
@@ -228,16 +238,17 @@ class TrainerSAGAN():
         self.save_models(last=True)
         print('Training finished. Final models saved.')
 
-    def log(self, start_time: float, start_step: int, step: int,
-            losses: Mapping[str, torch.Tensor]) -> None:
+    def log(self, losses: Mapping[str, torch.Tensor]) -> None:
         """Log the training progress (and run wandb.log if enabled)."""
+        start_time = self.start_time
+        start_step = self.start_step
+        step = self.step
         delta_str, eta_str = get_delta_eta(start_time, start_step, step,
-                                           self.config.training.total_step)
-        step_spaces = ' ' * (len(str(self.config.training.total_step))
-                             - len(str(step + 1)))
+                                           self.total_step)
+        step_spaces = ' ' * (len(str(self.total_step)) - len(str(step + 1)))
+
         avg_gammas = []
         attn_id = 1
-
         while hasattr(self.gen, f'attn{attn_id}'):
             avg_gamma = getattr(self.gen, f'attn{attn_id}').gamma
             avg_gamma = torch.abs(avg_gamma).mean().item()
@@ -245,8 +256,7 @@ class TrainerSAGAN():
             attn_id += 1
 
         print(
-            f"Step {step_spaces}{step + 1}/"
-            f"{self.config.training.total_step} "
+            f"Step {step_spaces}{step + 1}/{self.total_step} "
             f"[{delta_str} < {eta_str}] "
             f"G_loss: {losses['g_loss'].item():6.2f} | "
             f"D_loss: {losses['d_loss'].item():6.2f} | "
@@ -287,16 +297,9 @@ class TrainerSAGAN():
         """Build generator, discriminator and the optimizers."""
         config = self.config
         self.gen = SAGenerator(n_classes=self.n_classes,
-                               data_size=config.model.data_size,
-                               z_dim=config.model.z_dim,
-                               conv_dim=config.model.g_conv_dim,
-                               full_values=config.model.full_values
-                               ).cuda()
+                               model_config=self.config.model).cuda()
         self.disc = SADiscriminator(n_classes=self.n_classes,
-                                    data_size=config.model.data_size,
-                                    conv_dim=config.model.d_conv_dim,
-                                    full_values=config.model.full_values
-                                    ).cuda()
+                                    model_config=self.config.model).cuda()
 
         self.g_optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad,
@@ -323,18 +326,20 @@ class TrainerSAGAN():
                              f'discriminator_step_{step}.pth')))
         print(f'Loaded trained models (step: {step}).')
 
-    def save_sample_and_attention(self, step: int) -> None:
+    def save_sample_and_attention(self) -> None:
         """Save sample images and eventually attention maps."""
         self.gen.eval()
+        step = self.step
         images, gen_attns = self.gen.generate(self.fixed_z, with_attn=True)
 
         # Save sample images in a grid
-        out_path = os.path.join(self.sample_path, f"images_step_{step}.png")
+        out_path = os.path.join(self.sample_path,
+                                f"images_step_{step + 1}.png")
         img_grid = to_img_grid(images)
         Image.fromarray(img_grid).save(out_path)
 
         if self.config.wandb.use_wandb:
-            images = wandb.Image(img_grid, caption=f"step {step}")
+            images = wandb.Image(img_grid, caption=f"step {step + 1}")
             wandb.log({"generated_images": images})
 
         if self.config.save_attn:
@@ -342,12 +347,11 @@ class TrainerSAGAN():
             gen_attns = [attn.detach().cpu().numpy() for attn in gen_attns]
             for i, gen_attn in enumerate(gen_attns):
                 attn_path = os.path.join(self.attn_path,
-                                         f'gen_attn_step_{step}')
+                                         f'gen_attn_step_{step + 1}')
                 os.makedirs(attn_path, exist_ok=True)
                 np.save(osp.join(attn_path, f'attn_{i}.npy'), gen_attn)
 
-    def save_models(self, step: Optional[int] = None,
-                    last: bool = False) -> None:
+    def save_models(self, last: bool = False) -> None:
         """Save generator and discriminator."""
         if last:
             torch.save(
@@ -357,11 +361,12 @@ class TrainerSAGAN():
                 self.disc.state_dict(),
                 os.path.join(self.model_save_path, 'discriminator_last.pth'))
         else:
+            step = self.step
             torch.save(
                 self.gen.state_dict(),
                 os.path.join(self.model_save_path,
-                             f'generator_step_{step}.pth'))
+                             f'generator_step_{step + 1}.pth'))
             torch.save(
                 self.disc.state_dict(),
                 os.path.join(self.model_save_path,
-                             f'discriminator_step_{step}.pth'))
+                             f'discriminator_step_{step + 1}.pth'))

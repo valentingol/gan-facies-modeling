@@ -1,5 +1,6 @@
 --- !model
 architecture: sagan
+init_method: 'default'  # could be either 'default' or 'orthogonal'
 data_size: 64  # could be either 32 or 64
 full_values: True
 z_dim: 128

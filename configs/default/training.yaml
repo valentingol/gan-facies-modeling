@@ -15,6 +15,7 @@ weight_decay: 0.0
 # Step sizes
 total_step: 100000
 total_time: -1  # in sec, < 0 means no time limit
+ema_start_step: 0  # only used if g_ema_decay < 1.0
 log_step: 10
 sample_step: 400  # save generated images every n steps
 model_save_step: 1200  # save generator and discriminator every n steps

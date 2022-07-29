@@ -8,6 +8,7 @@ import numpy as np
 import torch
 from torch import nn
 
+from utils.configs import ConfigType
 from utils.data.process import color_data_np
 from utils.sagan.spectral import SpectralNorm
 
@@ -23,12 +24,13 @@ class SelfAttention(nn.Module):
         Input feature map dimension (channels).
     att_dim : int, optional
         Attention map dimension for each query and key
-        (and value if full_values is False). By default, in_dim // 8.
+        (and value if full_values is False).
+        By default, in_dim // 8.
     full_values : bool, optional
-        Whether to have value dimension equal to full dimension (in_dim)
-        or reduced to in_dim // 2. In the latter case, the output of the
-        attention is projected to full dimension by an additional
-        1*1 convolution. By default, True.
+        Whether to have value dimension equal to full dimension
+        (in_dim) or reduced to in_dim // 2. In the latter case,
+        the output of the attention is projected to full dimension
+        by an additional 1*1 convolution. By default, True.
     """
 
     def __init__(self, in_dim: int, att_dim: Optional[int] = None,
@@ -96,16 +98,15 @@ class SelfAttention(nn.Module):
 class SADiscriminator(nn.Module):
     """Self-attention discriminator."""
 
-    def __init__(self, n_classes: int, data_size: int = 64,
-                 conv_dim: int = 64, full_values: bool = True) -> None:
+    def __init__(self, n_classes: int, model_config: ConfigType) -> None:
         super().__init__()
         self.n_classes = n_classes
-        self.data_size = data_size
+        self.data_size = model_config.data_size
 
-        self.conv1 = self._make_disc_block(n_classes, conv_dim, kernel_size=4,
-                                           stride=2, padding=1)
+        self.conv1 = self._make_disc_block(n_classes, model_config.d_conv_dim,
+                                           kernel_size=4, stride=2, padding=1)
 
-        current_dim = conv_dim
+        current_dim = model_config.d_conv_dim
         self.conv2 = self._make_disc_block(current_dim, current_dim * 2,
                                            kernel_size=4, stride=2, padding=1)
 
@@ -113,7 +114,8 @@ class SADiscriminator(nn.Module):
         self.conv3 = self._make_disc_block(current_dim, current_dim * 2,
                                            kernel_size=4, stride=2, padding=1)
 
-        self.attn1 = SelfAttention(current_dim * 2, full_values=full_values)
+        self.attn1 = SelfAttention(current_dim * 2,
+                                   full_values=model_config.full_values)
 
         if self.data_size == 64:
             current_dim = current_dim * 2
@@ -121,11 +123,30 @@ class SADiscriminator(nn.Module):
                                                kernel_size=4, stride=2,
                                                padding=1)
             self.attn2 = SelfAttention(current_dim * 2,
-                                       full_values=full_values)
+                                       full_values=model_config.full_values)
 
         current_dim = current_dim * 2
         self.conv_last = nn.Sequential(
             nn.Conv2d(current_dim, 1, kernel_size=4),)
+
+        self.init_weights(model_config.init_method)
+
+    def init_weights(self, init_method: str) -> None:
+        """Initialize weights."""
+        if init_method == 'default':
+            return
+        for _, param in self.named_parameters():
+            if param.ndim == 4:
+                if init_method == 'orthogonal':
+                    nn.init.orthogonal_(param)
+                elif init_method == 'glorot':
+                    nn.init.xavier_uniform_(param)
+                elif init_method == 'normal':
+                    nn.init.normal_(param, 0, 0.02)
+                else:
+                    raise ValueError(
+                        f'Unknown init method: {init_method}. Should be one '
+                        'of "default", "orthogonal", "glorot", "normal".')
 
     def _make_disc_block(self, in_channels: int, out_channels: int,
                          kernel_size: int, stride: int,
@@ -179,19 +200,19 @@ class SADiscriminator(nn.Module):
 class SAGenerator(nn.Module):
     """Self-attention generator."""
 
-    def __init__(self, n_classes: int, data_size: int = 64, z_dim: int = 128,
-                 conv_dim: int = 64, full_values: bool = True) -> None:
+    def __init__(self, n_classes: int, model_config: ConfigType) -> None:
         super().__init__()
         self.n_classes = n_classes
-        self.data_size = data_size
+        self.data_size = model_config.data_size
 
         repeat_num = int(np.log2(self.data_size)) - 3
         mult = 2**repeat_num  # 8 if data_size=64, 4 if data_size=32
 
-        self.conv1 = self._make_gen_block(z_dim, conv_dim * mult,
+        self.conv1 = self._make_gen_block(model_config.z_dim,
+                                          model_config.g_conv_dim * mult,
                                           kernel_size=4, stride=1, padding=0)
 
-        current_dim = conv_dim * mult
+        current_dim = model_config.g_conv_dim * mult
         self.conv2 = self._make_gen_block(current_dim, current_dim // 2,
                                           kernel_size=4, stride=2, padding=1)
 
@@ -199,7 +220,8 @@ class SAGenerator(nn.Module):
         self.conv3 = self._make_gen_block(current_dim, current_dim // 2,
                                           kernel_size=4, stride=2, padding=1)
 
-        self.attn1 = SelfAttention(current_dim // 2, full_values=full_values)
+        self.attn1 = SelfAttention(current_dim // 2,
+                                   full_values=model_config.full_values)
 
         if self.data_size == 64:
             current_dim = current_dim // 2
@@ -207,13 +229,32 @@ class SAGenerator(nn.Module):
                                               kernel_size=4, stride=2,
                                               padding=1)
             self.attn2 = SelfAttention(current_dim // 2,
-                                       full_values=full_values)
+                                       full_values=model_config.full_values)
 
         current_dim = current_dim // 2
 
         self.conv_last = nn.Sequential(
             nn.ConvTranspose2d(current_dim, n_classes, kernel_size=4, stride=2,
                                padding=1))
+
+        self.init_weights(model_config.init_method)
+
+    def init_weights(self, init_method: str) -> None:
+        """Initialize weights."""
+        if init_method == 'default':
+            return
+        for _, param in self.named_parameters():
+            if param.ndim == 4:
+                if init_method == 'orthogonal':
+                    nn.init.orthogonal_(param)
+                elif init_method == 'glorot':
+                    nn.init.xavier_uniform_(param)
+                elif init_method == 'normal':
+                    nn.init.normal_(param, 0, 0.02)
+                else:
+                    raise ValueError(
+                        f'Unknown init method: {init_method}. Should be one '
+                        'of "default", "orthogonal", "glorot", "normal".')
 
     def _make_gen_block(self, in_channels: int, out_channels: int,
                         kernel_size: int, stride: int,
