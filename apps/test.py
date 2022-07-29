@@ -10,10 +10,14 @@ from PIL import Image
 from utils.configs import ConfigType, GlobalConfig
 from utils.data.process import to_img_grid
 from utils.sagan.modules import SAGenerator
+from utils.train.random_utils import set_global_seed
 
 
 def test(config: ConfigType) -> None:
     """Test the generator."""
+    # For reproducibility
+    set_global_seed(seed=config.seed)
+
     architecture = config.model.architecture
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     batch_size = config.test_batch_size
@@ -29,9 +33,7 @@ def test(config: ConfigType) -> None:
 
     if architecture == 'sagan':
         generator = SAGenerator(n_classes=n_classes,
-                                data_size=config.model.data_size,
-                                z_dim=config.model.z_dim,
-                                conv_dim=config.model.g_conv_dim).to(device)
+                                model_config=config.model).to(device)
 
     z_input = torch.randn(batch_size, config.model.z_dim, device=device)
     generator.load_state_dict(torch.load(model_path))
