@@ -3,6 +3,7 @@
 Underground facies (= kind of rocks) modeling with GANs.
 
 ![PythonVersion](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-informational)
+![PytorchVersion](https://img.shields.io/badge/Pytorch-1.12-blue)
 [![License](https://img.shields.io/badge/license-MIT-white)](https://stringfixer.com/fr/MIT_license)
 [![GitHub User followers](https://img.shields.io/github/followers/valentingol?label=Owner%20followers&style=social)](https://github.com/valentingol)
 [![GitHub User's User stars](https://img.shields.io/github/stars/valentingol?label=Owner%20Stars&style=social)](https://github.com/valentingol)
@@ -100,8 +101,12 @@ Two examples (using wandb without and with sweep) are available in `configs/exp`
 
 ## TODO list
 
-- [ ] Add test for generator in `apps/train.py`
+- [x] Add test for generator in `apps/train.py`
 - [ ] Add generated results on GANSim dataset and [Stanford VI dataset](https://github.com/SCRFpublic/Stanford-VI-E/tree/master/Facies) (in progress 🚧)
 - [ ] Add conditional SAGAN
 - [ ] Add 3D models
 - [ ] Explore other architectures
+
+## How to contribute
+
+Please have a look on [CONTRIBUTE.md](./CONTRIBUTE.md). Thank you very much! 🙏
