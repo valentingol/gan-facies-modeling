@@ -103,29 +103,38 @@ class SADiscriminator(nn.Module):
         self.n_classes = n_classes
         self.data_size = model_config.data_size
 
-        self.conv1 = self._make_disc_block(n_classes, model_config.d_conv_dim,
-                                           kernel_size=4, stride=2, padding=1)
+        datasize_to_num_blocks = {32: 4, 64: 5, 128: 6, 256: 7}
+        num_blocks = datasize_to_num_blocks[model_config.data_size]
+        self.num_blocks = num_blocks
+        # make_attention[i] is True if adding self-attention
+        # to {i+1}-th block output
+        make_attention = [i + 1 in model_config.attn_layer_num
+                          for i in range(num_blocks)]
+        self.make_attention = make_attention
 
-        current_dim = model_config.d_conv_dim
-        self.conv2 = self._make_disc_block(current_dim, current_dim * 2,
-                                           kernel_size=4, stride=2, padding=1)
+        attn_id = 1  # Attention layers id
+        for i in range(1, num_blocks):
+            if i == 1:  # First block:
+                block = self._make_disc_block(n_classes,
+                                              model_config.d_conv_dim,
+                                              kernel_size=4, stride=2,
+                                              padding=1)
+                current_dim = model_config.d_conv_dim
+            else:
+                block = self._make_disc_block(current_dim,
+                                              current_dim * 2,
+                                              kernel_size=4, stride=2,
+                                              padding=1)
+                current_dim = current_dim * 2
+            # Add conv block to the model
+            setattr(self, f'conv{i}', block)
+            if make_attention[i - 1]:
+                attn = SelfAttention(current_dim,
+                                     full_values=model_config.full_values)
+                # Add self-attention to the model
+                setattr(self, f'attn{attn_id}', attn)
+                attn_id += 1
 
-        current_dim = current_dim * 2
-        self.conv3 = self._make_disc_block(current_dim, current_dim * 2,
-                                           kernel_size=4, stride=2, padding=1)
-
-        self.attn1 = SelfAttention(current_dim * 2,
-                                   full_values=model_config.full_values)
-
-        if self.data_size == 64:
-            current_dim = current_dim * 2
-            self.conv4 = self._make_disc_block(current_dim, current_dim * 2,
-                                               kernel_size=4, stride=2,
-                                               padding=1)
-            self.attn2 = SelfAttention(current_dim * 2,
-                                       full_values=model_config.full_values)
-
-        current_dim = current_dim * 2
         self.conv_last = nn.Sequential(
             nn.Conv2d(current_dim, 1, kernel_size=4),)
 
@@ -171,30 +180,25 @@ class SADiscriminator(nn.Module):
 
         Returns
         -------
-        out : torch.Tensor
+        x : torch.Tensor
             Prediction of discriminator over batch, of shape (B,).
         att_list : list[torch.Tensor]
             Attention maps from all dot product attentions
             of shape (B, W*H~queries, W*H~keys).
         """
-        att_list = []
-        out = self.conv1(x)
-        out = self.conv2(out)
-        out = self.conv3(out)
-        out, att1 = self.attn1(out)
-        att_list.append(att1)
+        att_list: List[torch.Tensor] = []
+        for i in range(1, self.num_blocks):
+            x = getattr(self, f'conv{i}')(x)
+            if self.make_attention[i - 1]:
+                x, att = getattr(self, f'attn{len(att_list) + 1}')(x)
+                att_list.append(att)
 
-        if self.data_size == 64:
-            out = self.conv4(out)
-            out, att2 = self.attn2(out)
-            att_list.append(att2)
+        x = self.conv_last(x).squeeze()
 
-        out = self.conv_last(out).squeeze()
+        if x.ndim == 0:  # when batch size is 1
+            x = x.unsqueeze(0)
 
-        if out.ndim == 0:  # when batch size is 1
-            out = out.unsqueeze(0)
-
-        return out, att_list
+        return x, att_list
 
 
 class SAGenerator(nn.Module):
@@ -205,33 +209,40 @@ class SAGenerator(nn.Module):
         self.n_classes = n_classes
         self.data_size = model_config.data_size
 
+        datasize_to_num_blocks = {32: 4, 64: 5, 128: 6, 256: 7}
+        num_blocks = datasize_to_num_blocks[model_config.data_size]
+        self.num_blocks = num_blocks
+        # make_attention[i] is True if adding self-attention
+        # to {i+1}-th block output
+        make_attention = [i + 1 in model_config.attn_layer_num
+                          for i in range(num_blocks)]
+        self.make_attention = make_attention
+
         repeat_num = int(np.log2(self.data_size)) - 3
-        mult = 2**repeat_num  # 8 if data_size=64, 4 if data_size=32
+        mult = 2**repeat_num  # 4 if data_size=32, 8 if data_size=64, ...
 
-        self.conv1 = self._make_gen_block(model_config.z_dim,
-                                          model_config.g_conv_dim * mult,
-                                          kernel_size=4, stride=1, padding=0)
-
-        current_dim = model_config.g_conv_dim * mult
-        self.conv2 = self._make_gen_block(current_dim, current_dim // 2,
-                                          kernel_size=4, stride=2, padding=1)
-
-        current_dim = current_dim // 2
-        self.conv3 = self._make_gen_block(current_dim, current_dim // 2,
-                                          kernel_size=4, stride=2, padding=1)
-
-        self.attn1 = SelfAttention(current_dim // 2,
-                                   full_values=model_config.full_values)
-
-        if self.data_size == 64:
-            current_dim = current_dim // 2
-            self.conv4 = self._make_gen_block(current_dim, current_dim // 2,
-                                              kernel_size=4, stride=2,
-                                              padding=1)
-            self.attn2 = SelfAttention(current_dim // 2,
-                                       full_values=model_config.full_values)
-
-        current_dim = current_dim // 2
+        attn_id = 1  # Attention layers id
+        for i in range(1, num_blocks):
+            if i == 1:  # First block:
+                block = self._make_gen_block(model_config.z_dim,
+                                             model_config.g_conv_dim * mult,
+                                             kernel_size=4, stride=1,
+                                             padding=0)
+                current_dim = model_config.g_conv_dim * mult
+            else:
+                block = self._make_gen_block(current_dim,
+                                             current_dim // 2,
+                                             kernel_size=4, stride=2,
+                                             padding=1)
+                current_dim = current_dim // 2
+            # Add conv block to the model
+            setattr(self, f'conv{i}', block)
+            if make_attention[i - 1]:
+                attn = SelfAttention(current_dim,
+                                     full_values=model_config.full_values)
+                # Add self-attention to the model
+                setattr(self, f'attn{attn_id}', attn)
+                attn_id += 1
 
         self.conv_last = nn.Sequential(
             nn.ConvTranspose2d(current_dim, n_classes, kernel_size=4, stride=2,
@@ -286,18 +297,13 @@ class SAGenerator(nn.Module):
             Attention maps from all dot product attentions
             of shape (B, W*H~queries, W*H~keys).
         """
-        att_list = []
-        z = z.view(z.size(0), z.size(1), 1, 1)
-        x = self.conv1(z)
-        x = self.conv2(x)
-        x = self.conv3(x)
-        x, att1 = self.attn1(x)
-        att_list.append(att1)
-
-        if self.data_size == 64:
-            x = self.conv4(x)
-            x, att2 = self.attn2(x)
-            att_list.append(att2)
+        att_list: List[torch.Tensor] = []
+        x = z.view(z.size(0), z.size(1), 1, 1)
+        for i in range(1, self.num_blocks):
+            x = getattr(self, f'conv{i}')(x)
+            if self.make_attention[i - 1]:
+                x, att = getattr(self, f'attn{len(att_list) + 1}')(x)
+                att_list.append(att)
 
         x = self.conv_last(x)
         x = nn.Softmax(dim=1)(x)

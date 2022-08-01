@@ -5,8 +5,9 @@ dataset_path: null  # use custom simple dataset instead
 save_attn: True
 
 model.data_size: 32
-model.d_conv_dim: 64
-model.g_conv_dim: 64
+model.attn_layer_num: [1, 2, 3]
+model.d_conv_dim: 8
+model.g_conv_dim: 8
 model.full_values: True
 model.init_method: orthogonal
 
