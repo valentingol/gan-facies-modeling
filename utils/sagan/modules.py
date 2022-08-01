@@ -186,7 +186,7 @@ class SADiscriminator(nn.Module):
             Attention maps from all dot product attentions
             of shape (B, W*H~queries, W*H~keys).
         """
-        att_list = []
+        att_list: List[torch.Tensor] = []
         for i in range(1, self.num_blocks):
             x = getattr(self, f'conv{i}')(x)
             if self.make_attention[i - 1]:
@@ -297,8 +297,7 @@ class SAGenerator(nn.Module):
             Attention maps from all dot product attentions
             of shape (B, W*H~queries, W*H~keys).
         """
-
-        att_list = []
+        att_list: List[torch.Tensor] = []
         x = z.view(z.size(0), z.size(1), 1, 1)
         for i in range(1, self.num_blocks):
             x = getattr(self, f'conv{i}')(x)
