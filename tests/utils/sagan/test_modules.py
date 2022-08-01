@@ -40,8 +40,10 @@ def test_sa_discriminator(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
     x = torch.rand(size=(5, 4, 32, 32), dtype=torch.float32)
     x = x / torch.sum(x, dim=1, keepdim=True)  # normalize
     preds, att_list = disc(x)
-    assert len(att_list) == 1
-    assert att_list[0].shape == (5, 16, 16)
+    assert len(att_list) == 3
+    assert att_list[0].shape == (5, 256, 256)
+    assert att_list[1].shape == (5, 64, 64)
+    assert att_list[2].shape == (5, 16, 16)
     assert preds.shape == (5,)
 
     # config 64
@@ -50,9 +52,8 @@ def test_sa_discriminator(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
     x = x / torch.sum(x, dim=1, keepdim=True)  # normalize
     preds, att_list = disc(x)
     assert preds.shape == (1,)
-    assert len(att_list) == 2
-    assert att_list[0].shape == (1, 64, 64)
-    assert att_list[1].shape == (1, 16, 16)
+    assert len(att_list) == 1
+    assert att_list[0].shape == (1, 16, 16)
 
 
 def test_sa_generator(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
@@ -64,17 +65,18 @@ def test_sa_generator(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
     z = torch.rand(size=(5, 128), dtype=torch.float32)
     data, att_list = gen(z)
     assert data.shape == (5, 4, 32, 32)
-    assert len(att_list) == 1
-    assert att_list[0].shape == (5, 256, 256)
+    assert len(att_list) == 3
+    assert att_list[0].shape == (5, 16, 16)
+    assert att_list[1].shape == (5, 64, 64)
+    assert att_list[2].shape == (5, 256, 256)
 
     # config 64
     gen = SAGenerator(n_classes=4, model_config=config64.model)
     z = torch.rand(size=(1, 128), dtype=torch.float32)
     data, att_list = gen(z)
     assert data.shape == (1, 4, 64, 64)
-    assert len(att_list) == 2
-    assert att_list[0].shape == (1, 256, 256)
-    assert att_list[1].shape == (1, 1024, 1024)
+    assert len(att_list) == 1
+    assert att_list[0].shape == (1, 1024, 1024)
 
     # Test generate method
     images, _ = gen.generate(z, with_attn=True)
