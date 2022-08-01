@@ -6,12 +6,13 @@ import copy
 import os
 import os.path as osp
 import time
-from typing import List, Mapping
+from typing import List, Mapping, Union
 
 import numpy as np
 import torch
 import wandb
 from PIL import Image
+from rich.console import Console
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 
@@ -55,6 +56,8 @@ class TrainerSAGAN():
         self.attn_path = osp.join('res', run_name, 'attention')
         self.model_save_path = osp.join('res', run_name, 'models')
         self.sample_path = osp.join('res', run_name, 'samples')
+
+        self._console = Console()
 
         self.build_model()
 
@@ -172,9 +175,9 @@ class TrainerSAGAN():
         """Train SAGAN."""
         config = self.config
         adv_loss = config.training.adv_loss
-        assert adv_loss in ['wgan-gp',
-                            'hinge'], (f'Loss "{adv_loss}" is not supported.'
-                                       'Should be "wgan-gp" or "hinge".')
+        assert adv_loss in ['wgan-gp', 'hinge'], (
+            f'Loss "{adv_loss}" is not supported.'
+            'Should be "wgan-gp" or "hinge".')
 
         # Create directories if not exist
         run_name = config.run_name
@@ -240,15 +243,24 @@ class TrainerSAGAN():
 
     def log(self, losses: Mapping[str, torch.Tensor]) -> None:
         """Log the training progress (and run wandb.log if enabled)."""
+        rprint = self._console.print
+
+        def log_row(key: str, value: Union[str, float, int],
+                    style: str, size: int = 6) -> None:
+            """Display a row in the console."""
+            value = str(value)[:size].ljust(size)
+            rprint(f'{key}: ', style=style, end='')
+            rprint(f'{value}', style='bold ' + style, end='', highlight=False)
+            print(' | ', end='')
+
         start_time = self.start_time
         start_step = self.start_step
         step = self.step
         delta_str, eta_str = get_delta_eta(start_time, start_step, step,
                                            self.total_step)
-        step_spaces = ' ' * (len(str(self.total_step)) - len(str(step + 1)))
+        step_str = f'{step + 1}'.rjust(len(str(self.total_step)))
 
-        avg_gammas = []
-        attn_id = 1
+        avg_gammas, attn_id = [], 1
         while hasattr(self.gen, f'attn{attn_id}'):
             avg_gamma = getattr(self.gen, f'attn{attn_id}').gamma
             avg_gamma = torch.abs(avg_gamma).mean().item()
@@ -256,18 +268,18 @@ class TrainerSAGAN():
             attn_id += 1
 
         print(
-            f"Step {step_spaces}{step + 1}/{self.total_step} "
-            f"[{delta_str} < {eta_str}] "
-            f"G_loss: {losses['g_loss'].item():6.2f} | "
-            f"D_loss: {losses['d_loss'].item():6.2f} | "
-            f"D_loss_real: {losses['d_loss_real'].item():6.2f} | ", end='')
+            f"Step {step_str}/{self.total_step} "
+            f"[{delta_str} < {eta_str}] ", end='')
+        log_row("G_loss", losses['g_loss'].item(), 'green')
+        log_row("D_loss", losses['d_loss'].item(), '#fa4646')
+        log_row("D_loss_real", losses['d_loss_real'].item(), '#b84a00')
         if self.config.training.adv_loss == 'wgan-gp':
-            print(f"D_loss_gp: {losses['d_loss_gp'].item():5.2f} | ", end='')
-        print("avg gamma(s): ", end='')
+            log_row("D_loss_gp", losses['d_loss_gp'].item(), '#e06919', size=5)
+        rprint("avg gamma(s): ", style='#d670d6', end='', highlight=False)
         for i, avg_gamma in enumerate(avg_gammas):
             if i != 0:
                 print(' - ', end='')
-            print(f"{avg_gamma:5.3f}", end='')
+            rprint(f"{avg_gamma:5.3f}", end='')
         print()
 
         if self.config.wandb.use_wandb:
