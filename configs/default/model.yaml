@@ -1,7 +1,11 @@
 --- !model
 architecture: sagan
 init_method: 'default'  # could be either 'default' or 'orthogonal'
-data_size: 64  # could be either 32 or 64
+data_size: 64  # could be either 32, 64, 128 or 256
+# attn_layer_num: number of the block(s) where attention is applied to the output (starting from 1)
+# NOTE: the number of blocks depends on the data size only:
+# data_size 32: 4 blocks, data_size 64: 5 blocks, data_size 128: 6 blocks, data_size 256: 7 blocks
+attn_layer_num: [3, 4]
 full_values: True
 z_dim: 128
 g_conv_dim: 64
