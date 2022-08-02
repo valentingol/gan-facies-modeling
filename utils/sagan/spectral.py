@@ -61,7 +61,7 @@ class SpectralNorm(nn.Module):
         v_param.data = l2normalize(v_param.data)
         w_bar = Parameter(w_param.data)
 
-        del self.module._parameters[self.weight_name]
+        delattr(self.module, self.weight_name)
 
         self.module.register_parameter(self.weight_name + "_u", u_param)
         self.module.register_parameter(self.weight_name + "_v", v_param)
