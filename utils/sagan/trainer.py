@@ -207,6 +207,7 @@ class TrainerSAGAN():
                 except StopIteration:  # Restart data iterator
                     data_iter = iter(self.data_loader)
                     real_data = next(data_iter)
+
                 assert real_data.shape[0] == config.training.batch_size, (
                     'Batch size should always match the value in '
                     f'configurations. Find {real_data.shape[0]} and '
@@ -290,9 +291,10 @@ class TrainerSAGAN():
     def get_log_for_wandb(self, metrics: Mapping[str, torch.Tensor],
                           avg_gammas: List[float]) -> Mapping[str, float]:
         """Get dict logs from metrics and gammas for wandb."""
+        g_loss, d_loss = metrics['g_loss'].item(), metrics['d_loss'].item()
         logs = {
-            'sum_losses':
-            (metrics['g_loss'].item() + metrics['d_loss'].item()),
+            'sum_losses': g_loss + d_loss,
+            'abs_losses': abs(g_loss) + abs(d_loss)
         }
         for metric_name, metric in metrics.items():
             logs[metric_name] = metric.item()
