@@ -1,4 +1,7 @@
 --- !training
+# interrupt_threshold: stop the training if the sum of the absolute losses are
+# above this value (negative to disable)
+interrupt_threshold: -1.0
 batch_size: 64
 adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
 # d_iters: number of time to train discriminator each time generator is trained
