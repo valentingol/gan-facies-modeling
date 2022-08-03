@@ -77,7 +77,8 @@ def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
                                       'test': torch.tensor(0.2)},
                                      avg_gammas=[0.5, 0.6, 0.7])
     expected_logs = {'g_loss': 0.3, 'd_loss': -0.2, 'test': 0.2,
-                     'sum_losses': 0.1, 'avg_gamma1': 0.5, 'avg_gamma2': 0.6,
+                     'sum_losses': 0.1, 'abs_losses': 0.5,
+                     'avg_gamma1': 0.5, 'avg_gamma2': 0.6,
                      'avg_gamma3': 0.7}
     for key, val in expected_logs.items():
         assert np.isclose(logs[key], val), f'error for key {key}'
