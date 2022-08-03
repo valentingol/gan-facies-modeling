@@ -235,8 +235,19 @@ class TrainerSAGAN():
 
             if (self.total_time >= 0
                     and time.time() - self.start_time >= self.total_time):
-                print('Maximum time reached (note: total training time is '
-                      'set in config.training.total_time).')
+                print('Maximum time reached. Interrupting training '
+                      '(note: total training time is '
+                      'set in config.training.total_time, set a non-zero '
+                      'negative number to disable this feature).')
+                break
+
+            if (self.config.training.interrupt_threshold > 0
+                    and abs(losses['g_loss'].item()) + abs(losses['d_loss'])
+                    >= self.config.training.interrupt_threshold):
+                print('Losses are too large. Interrupting training '
+                      '(note: the loss threshold is set in '
+                      'config.training.interrupt_threshold, set a negative '
+                      'number to disable this feature).')
                 break
         # Save the final models
         self.save_models(last=True)
