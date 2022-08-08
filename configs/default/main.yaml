@@ -10,8 +10,10 @@ save_attn: False
 # (0 to not apply parallelism)
 num_workers: 0
 test_batch_size: 64
+trunc_ampl: 0.5  # truncation amplitude of inputs (for test only), negative to disable
 
 # Additional configs
 model_config_path: configs/default/model.yaml
 training_config_path: configs/default/training.yaml
 wandb_config_path: configs/default/wandb.yaml
+metrics_config_path: configs/default/metrics.yaml
