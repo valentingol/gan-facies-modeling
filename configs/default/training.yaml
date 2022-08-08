@@ -3,10 +3,11 @@
 # above this value (negative to disable)
 interrupt_threshold: -1.0
 batch_size: 64
+save_boxes: True  # save the metric boxes
 adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
-# d_iters: number of time to train discriminator each time generator is trained
+
 g_ema_decay: 1.0  # decay of generator's exponential moving average (1.0 = no decay)
-d_iters: 1
+d_iters: 1  # d_iters: number of time to train discriminator each time generator is trained
 g_lr: 0.0001
 d_lr: 0.0004
 # lambda_gp: gradient penalty factor in the loss
@@ -22,3 +23,4 @@ ema_start_step: 0  # only used if g_ema_decay < 1.0
 log_step: 10
 sample_step: 400  # save generated images every n steps
 model_save_step: 1200  # save generator and discriminator every n steps
+metric_step: 1200  # compute metrics every n steps

@@ -3,10 +3,11 @@
 """Training class for SAGAN."""
 
 import copy
+import json
 import os
 import os.path as osp
 import time
-from typing import List, Mapping, Union
+from typing import Dict, List, Union
 
 import numpy as np
 import torch
@@ -18,6 +19,7 @@ from torch.utils.data import DataLoader
 
 from utils.configs import ConfigType
 from utils.data.process import to_img_grid
+from utils.metrics import compute_indicators, wasserstein_distances
 from utils.sagan.modules import SADiscriminator, SAGenerator
 from utils.train.time_utils import get_delta_eta
 
@@ -54,6 +56,7 @@ class TrainerSAGAN():
         # Paths
         run_name = config.run_name
         self.attn_path = osp.join('res', run_name, 'attention')
+        self.metrics_save_path = osp.join('res', run_name, 'metrics')
         self.model_save_path = osp.join('res', run_name, 'models')
         self.sample_path = osp.join('res', run_name, 'samples')
 
@@ -70,10 +73,13 @@ class TrainerSAGAN():
             self.gen_ema = copy.deepcopy(self.gen)
 
         # Fixed input for sampling
-        self.fixed_z = torch.randn(config.training.batch_size,
-                                   config.model.z_dim).cuda()
+        self.fixed_z = torch.fmod(torch.randn(config.training.batch_size,
+                                              config.model.z_dim),
+                                  config.trunc_ampl).cuda()
 
-    def train_generator(self) -> Mapping[str, torch.Tensor]:
+        self.indicators_path = ''  # Will be overwritten during training
+
+    def train_generator(self) -> Dict[str, torch.Tensor]:
         """Train the generator."""
         adv_loss = self.config.training.adv_loss
         losses = {}
@@ -109,7 +115,7 @@ class TrainerSAGAN():
         return losses
 
     def train_discriminator(
-            self, real_data: torch.Tensor) -> Mapping[str, torch.Tensor]:
+            self, real_data: torch.Tensor) -> Dict[str, torch.Tensor]:
         """Train the discriminator."""
         adv_loss = self.config.training.adv_loss
         batch_size = self.config.training.batch_size
@@ -182,8 +188,12 @@ class TrainerSAGAN():
         # Create directories if not exist
         run_name = config.run_name
         os.makedirs(osp.join('res', run_name, 'attention'), exist_ok=True)
+        os.makedirs(osp.join('res', run_name, 'metrics'), exist_ok=True)
         os.makedirs(osp.join('res', run_name, 'models'), exist_ok=True)
         os.makedirs(osp.join('res', run_name, 'samples'), exist_ok=True)
+
+        # Get indicators from training dataset
+        self.compute_train_indicators()
 
         # Data iterator
         data_iter = iter(self.data_loader)
@@ -233,6 +243,9 @@ class TrainerSAGAN():
             if (step+1) % config.training.model_save_step == 0:
                 self.save_models()
 
+            if (step+1) % config.training.metric_step == 0:
+                self.compute_metrics()
+
             if (self.total_time >= 0
                     and time.time() - self.start_time >= self.total_time):
                 print('Maximum time reached. Interrupting training '
@@ -253,7 +266,7 @@ class TrainerSAGAN():
         self.save_models(last=True)
         print('Training finished. Final models saved.')
 
-    def log(self, losses: Mapping[str, torch.Tensor]) -> None:
+    def log(self, losses: Dict[str, torch.Tensor]) -> None:
         """Log the training progress (and run wandb.log if enabled)."""
         rprint = self._console.print
 
@@ -299,8 +312,8 @@ class TrainerSAGAN():
                                           avg_gammas=avg_gammas)
             wandb.log(logs)
 
-    def get_log_for_wandb(self, metrics: Mapping[str, torch.Tensor],
-                          avg_gammas: List[float]) -> Mapping[str, float]:
+    def get_log_for_wandb(self, metrics: Dict[str, torch.Tensor],
+                          avg_gammas: List[float]) -> Dict[str, float]:
         """Get dict logs from metrics and gammas for wandb."""
         g_loss, d_loss = metrics['g_loss'].item(), metrics['d_loss'].item()
         logs = {
@@ -351,6 +364,25 @@ class TrainerSAGAN():
                              f'discriminator_step_{step}.pth')))
         print(f'Loaded trained models (step: {step}).')
 
+    def compute_train_indicators(self) -> None:
+        """Compute indicators from training set if not already exist."""
+        # Compute indicators for dataset if not provided or get them
+        dataset_body, _ = os.path.splitext(self.config.dataset_path)
+        self.indicators_path = dataset_body + '_indicators.json'
+        if not osp.exists(self.indicators_path):
+            print('Compute indicators from training dataset (used for '
+                  'metrics)...',
+                  end='')
+            data = np.load(self.config.dataset_path)
+            # Compute dataset indicators
+            indicators_list = compute_indicators(
+                data, **self.config.metrics.get_dict())
+            print(' Done.')
+            # Save indicators in the same folder as the dataset
+            with open(self.indicators_path, 'w', encoding='utf-8') as file_out:
+                json.dump(indicators_list, file_out, separators=(',', ':'),
+                          sort_keys=False, indent=4)
+
     def save_sample_and_attention(self) -> None:
         """Save sample images and eventually attention maps."""
         self.gen.eval()
@@ -395,3 +427,52 @@ class TrainerSAGAN():
                 self.disc.state_dict(),
                 os.path.join(self.model_save_path,
                              f'discriminator_step_{step + 1}.pth'))
+
+    def compute_metrics(self) -> None:
+        """Compute metrics."""
+        print('Computing metrics...')
+        config = self.config
+        # Generate images (over 500 2D images)
+        self.gen.eval()
+        print(" -> Generating images", end='\r')
+        data_gen = []
+        batch_size = config.training.batch_size
+        with torch.no_grad():
+            for k in range(512 // batch_size):
+                z_input = torch.fmod(torch.randn(config.training.batch_size,
+                                                 config.model.z_dim),
+                                     config.trunc_ampl).cuda()
+                out, _ = self.gen(z_input)
+                out = torch.argmax(out, dim=1).detach().cpu().numpy()
+                data_gen.append(out)
+                print(f" -> Generating images: {(k + 1)*batch_size} images",
+                      end='\r')
+        print()
+        data_gen_arr = np.vstack(data_gen)
+        data_gen_arr = data_gen_arr.astype(np.uint8)
+        print(" -> Computing indicators...", end='')
+
+        # Get reference indicators
+        with open(self.indicators_path, 'r', encoding='utf-8') as file_in:
+            indicators_list_ref = json.load(file_in)
+        if config.training.save_boxes:
+            save_boxes_path = osp.join(self.metrics_save_path,
+                                       f'boxes_step_{self.step + 1}.png')
+        else:
+            save_boxes_path = None
+        w_dists: Dict[str, float] = wasserstein_distances(
+            data_gen_arr, indicators_list_ref, save_boxes_path=save_boxes_path,
+            **config.metrics)[0]
+        print(' done.')
+        print("Wasserstein distances to **training** dataset indicators:")
+        rprint = self._console.print
+        for ind_name, w_dist in w_dists.items():
+            rprint(f"{ind_name}:", style='#ddf502', end=' ')
+            rprint(f"{w_dist:.3f}", style='bold #ddf502', end=' ')
+        if config.wandb.use_wandb:
+            wandb.log(w_dists)
+        save_metrics_path = osp.join(self.metrics_save_path,
+                                     f'metrics_step_{self.step + 1}.json')
+        with open(save_metrics_path, 'w', encoding='utf-8') as file_out:
+            json.dump(w_dists, file_out, separators=(',', ':'),
+                      sort_keys=False, indent=4)

@@ -2,7 +2,7 @@
 
 """Spectral normalization class."""
 
-from typing import Mapping, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import torch
 from torch import nn
@@ -68,7 +68,7 @@ class SpectralNorm(nn.Module):
         self.module.register_parameter(self.weight_name + "_bar", w_bar)
 
     def forward(self, *module_args: Optional[Tuple],
-                **module_kwargs: Optional[Mapping]) -> torch.Tensor:
+                **module_kwargs: Optional[Dict]) -> torch.Tensor:
         """Apply spectral normalization."""
         self._update_u_v()
         return self.module.forward(*module_args, **module_kwargs)
