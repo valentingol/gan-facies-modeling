@@ -35,7 +35,9 @@ def test(config: ConfigType) -> None:
         generator = SAGenerator(n_classes=n_classes,
                                 model_config=config.model).to(device)
 
-    z_input = torch.randn(batch_size, config.model.z_dim, device=device)
+    z_input = torch.fmod(torch.randn(batch_size, config.model.z_dim,
+                                     device=device),
+                         config.trunc_ampl)
     generator.load_state_dict(torch.load(model_path))
     generator.eval()
     with torch.no_grad():
