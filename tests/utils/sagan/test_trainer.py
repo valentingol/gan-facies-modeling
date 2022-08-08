@@ -1,5 +1,6 @@
 """Tests for utils/sagan/trainer.py."""
 
+import os
 import os.path as osp
 import shutil
 from typing import Tuple
@@ -59,12 +60,22 @@ def test_init(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
 
 def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
     """Test train method."""
+    # Create random datasets
+    data32 = np.random.randint(0, 4, size=(5, 32, 32), dtype=np.uint8)
+    data64 = np.random.randint(0, 4, size=(5, 32, 32), dtype=np.uint8)
+    os.makedirs('tests/datasets', exist_ok=True)
+    np.save('tests/datasets/data32.npy', data32)
+    np.save('tests/datasets/data64.npy', data64)
+
     trainers = build_trainers(data_loaders)
-    for trainer in trainers:
+    for i, trainer in enumerate(trainers):
         trainer.train()
         assert osp.exists('res/tmp_test/models/generator_step_2.pth')
         assert osp.exists('res/tmp_test/models/discriminator_step_2.pth')
         assert osp.exists('res/tmp_test/samples/images_step_2.png')
+        if i == 0:
+            assert osp.exists('res/tmp_test/metrics/boxes_step_4.png')
+            assert osp.exists('res/tmp_test/metrics/metrics_step_4.json')
         assert osp.exists('res/tmp_test/attention/gen_attn_step_2/attn_0.npy')
         # Test load_pretrained_model method
         trainer.load_pretrained_model(2)
@@ -85,3 +96,10 @@ def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
 
     if osp.exists('configs/runs/tmp_test'):
         shutil.rmtree('configs/runs/tmp_test')
+    assert osp.exists('tests/datasets/data32_indicators.json'), (
+        'indicators not saved'
+        )
+    assert osp.exists('tests/datasets/data64_indicators.json'), (
+        'indicators not saved'
+        )
+    shutil.rmtree('tests/datasets')
