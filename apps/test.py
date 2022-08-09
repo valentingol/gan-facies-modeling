@@ -34,10 +34,12 @@ def test(config: ConfigType) -> None:
     if architecture == 'sagan':
         generator = SAGenerator(n_classes=n_classes,
                                 model_config=config.model).to(device)
-
-    z_input = torch.fmod(torch.randn(batch_size, config.model.z_dim,
-                                     device=device),
-                         config.trunc_ampl)
+    if config.trunc_ampl > 0:
+        z_input = torch.fmod(torch.randn(batch_size, config.model.z_dim,
+                                         device=device),
+                             config.trunc_ampl)
+    else:
+        z_input = torch.randn(batch_size, config.model.z_dim, device=device)
     generator.load_state_dict(torch.load(model_path))
     generator.eval()
     with torch.no_grad():
