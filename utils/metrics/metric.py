@@ -125,11 +125,11 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
         plt.savefig(save_boxes_path)
     return metrics, (indicators_list_1, indicators_list_2)
 
-
-if __name__ == '__main__':
-    data = np.load('datasets/gansim_small.npy')
-    data1 = data[:len(data) // 2]
-    data2 = data[len(data) // 2:]
-    print(wasserstein_distances(data1, data2, normalization='none',
-                                unit_component_size=4,
-                                save_boxes_path='perfect_metrics.png')[0])
+# Example of use:
+# if __name__ == '__main__':
+#     data = np.load('datasets/gansim_small.npy')
+#     data1 = data[:len(data) // 2]
+#     data2 = data[len(data) // 2:]
+#     print(wasserstein_distances(data1, data2, normalization='none',
+#                                 unit_component_size=4,
+#                                 save_boxes_path='perfect_metrics.png')[0])

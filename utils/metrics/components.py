@@ -2,10 +2,11 @@
 
 These properties are used in utils/metrics/indicators.py.
 """
-
 from typing import Dict, List, Tuple
 
+import jax.numpy as jnp
 import numpy as np
+from jax import jit
 from skimage.measure import label, regionprops
 
 PropertiesType = Dict[str, np.ndarray]
@@ -84,7 +85,7 @@ def get_connected_components(data: np.ndarray, class_id: int,
 
     Returns
     -------
-    components : np.ndarray
+    components : np.ndarray, dtype=np.uint8
         Connected components labels of the same shape as data.
     """
     components = np.concatenate(
@@ -92,6 +93,7 @@ def get_connected_components(data: np.ndarray, class_id: int,
                connectivity=connectivity)[None, ...]
          for i in range(data.shape[0])],
         axis=0)
+    components = components.astype(np.uint8)
     return components
 
 
@@ -123,26 +125,6 @@ def get_props(components: np.ndarray,
         Perimeters (2D) or surface areas (3D) of each component of shape
         (n_images, max_n_components).
     """
-    def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
-                      class_id: int
-                      ) -> np.ndarray:
-        """Compute perimeter (2D objects) or surface area (3D objects)."""
-        # connect_1: neighbors with 1-connectivity
-        # 2D: 4-neighbors, 3D: 6-neighbors
-        connect_1 = (neighbors[..., :4] if neighbors.ndim == 4
-                     else neighbors[..., :6])
-        # Get all neighbors different from class_id and border
-        # (255 by convention, see 'get_neighbors_2d/_3d')
-        mask_ext = np.where((connect_1 != class_id) & (connect_1 != 255), 1, 0)
-        axis = tuple(range(1, connect_1.ndim))
-        # perimeter: number of edges (2D) or faces (3D) in the surface of
-        # the components
-        perimeters = [np.sum(np.where((components == i)[..., None]
-                                      & (mask_ext == 1), 1, 0), axis=axis)
-                      for i in range(1, components.max() + 1)]
-        perimeters_arr = np.array(perimeters, dtype=np.int32).T
-        return perimeters_arr  # shape (n_imgs, max_n_components)
-
     areas = np.zeros((components.shape[0], np.max(components)),
                      dtype=np.int32)
     extents = np.zeros((components.shape[0], np.max(components)),
@@ -159,8 +141,44 @@ def get_props(components: np.ndarray,
         extents[im_id][:len(extents_im)] = extents_im
     # Get perimeters / surface areas
     perimeters = get_perimeter(components, neighbors, class_id)
-
     return areas, extents, perimeters
+
+
+def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
+                  class_id: int) -> np.ndarray:
+    """Compute perimeter or surface area."""
+    @jit
+    def perimeter_component_jit(components: jnp.ndarray,
+                                i: jnp.ndarray,
+                                mask_ext: jnp.ndarray) -> jnp.ndarray:
+        """Compute perimeter of component i and stock it in perimeters."""
+        axis = tuple(range(1, neighbors.ndim))
+        mask_compo_i = jnp.expand_dims(components == i, axis=-1)
+        index = jnp.where(mask_compo_i & (mask_ext == 1), 1, 0)
+        perimeter = jnp.sum(index, axis=axis, dtype=jnp.int32)
+        return perimeter
+
+    # connect_1: neighbors with 1-connectivity
+    # 2D: 4-neighbors, 3D: 6-neighbors
+    connect_1 = (neighbors[..., :4] if neighbors.ndim == 4
+                 else neighbors[..., :6])
+    # Get all neighbors different from class_id and border
+    # (255 by convention, see 'get_neighbors_2d/_3d')
+    mask_ext = np.where((connect_1 != class_id) & (connect_1 != 255), 1, 0)
+    mask_ext = mask_ext.astype(np.uint8)
+    # perimeter: number of edges (2D) or faces (3D) in the surface of
+    # the components
+    perimeters = []
+
+    components = jnp.array(components, dtype=jnp.uint8)
+    mask_ext = jnp.array(mask_ext, dtype=jnp.uint8)
+    for i in range(1, jnp.max(components) + 1):
+        perimeter = perimeter_component_jit(components,
+                                            jnp.array(i, dtype=jnp.uint8),
+                                            mask_ext)
+        perimeters.append(perimeter)
+    perimeters_np = np.array(perimeters).T
+    return perimeters_np  # shape (n_imgs, max_n_components), dtype=np.int32
 
 
 def get_units_props(areas: np.ndarray, unit_component_size: int = 1

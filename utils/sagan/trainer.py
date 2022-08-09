@@ -73,9 +73,16 @@ class TrainerSAGAN():
             self.gen_ema = copy.deepcopy(self.gen)
 
         # Fixed input for sampling
-        self.fixed_z = torch.fmod(torch.randn(config.training.batch_size,
-                                              config.model.z_dim),
-                                  config.trunc_ampl).cuda()
+        if config.trunc_ampl > 0:
+            # Truncation trick
+            self.fixed_z = torch.fmod(torch.randn(config.training.batch_size,
+                                                  config.model.z_dim,
+                                                  device='cuda'),
+                                      config.trunc_ampl)
+        else:
+            self.fixed_z = torch.randn(config.training.batch_size,
+                                       config.model.z_dim,
+                                       device='cuda')
 
         self.indicators_path = ''  # Will be overwritten during training
 
@@ -374,6 +381,10 @@ class TrainerSAGAN():
                   'metrics)...',
                   end='')
             data = np.load(self.config.dataset_path)
+            np.random.shuffle(data)
+            # Reduce the size of the dataset to speed up computation
+            if len(data) > 2000:
+                data = data[:2000]
             # Compute dataset indicators
             indicators_list = compute_indicators(
                 data, **self.config.metrics.get_dict())
@@ -439,9 +450,17 @@ class TrainerSAGAN():
         batch_size = config.training.batch_size
         with torch.no_grad():
             for k in range(512 // batch_size):
-                z_input = torch.fmod(torch.randn(config.training.batch_size,
-                                                 config.model.z_dim),
-                                     config.trunc_ampl).cuda()
+                if config.trunc_ampl > 0:
+                    # Truncation trick
+                    z_input = torch.fmod(
+                        torch.randn(config.training.batch_size,
+                                    config.model.z_dim,
+                                    device='cuda'),
+                        config.trunc_ampl)
+                else:
+                    z_input = torch.randn(config.training.batch_size,
+                                          config.model.z_dim,
+                                          device='cuda')
                 out, _ = self.gen(z_input)
                 out = torch.argmax(out, dim=1).detach().cpu().numpy()
                 data_gen.append(out)

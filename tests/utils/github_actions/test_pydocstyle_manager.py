@@ -10,13 +10,13 @@ from utils.github_actions.pydocstyle_manager import check_output
 
 def test_check_output() -> None:
     """Test check_output."""
-    old_argv = sys.argv.copy()
+    old_argv = sys.argv.copy()  # Save sys.argv
     sys.argv = ['--n_errors=0']
     check_output()
     sys.argv = ['--n_errors=1']
     with pytest.raises(ValueError, match='.*found 1 error.*'):
         check_output()
-    sys.argv = old_argv
+    sys.argv = old_argv  # Restore sys.argv
 
 
 def test_pydocstyle_manager() -> None:
