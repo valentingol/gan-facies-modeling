@@ -104,3 +104,18 @@ def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
     image = np.transpose(image, (0, 2, 1, 3, 4))
     img_grid = np.reshape(image, (side * y_dim, side * x_dim, 3))
     return img_grid
+
+# Example using crop, color and grid
+# if __name__ == '__main__':
+#     import PIL.Image
+#     data = np.load('datasets/stanfordp1.npy')
+#     # Random crop data
+#     data_crop = []
+#     for i in range(data.shape[0]):
+#         data_crop.append(random_crop_np(data[i], 64))
+#     data_crop = np.array(data_crop)
+#     np.random.shuffle(data_crop)
+#     data = color_data_np(data_crop[:64])
+#     img_grid = to_img_grid(data)
+#     # Save the image
+#     PIL.Image.fromarray(img_grid).save('stanfordp1_real.png')
