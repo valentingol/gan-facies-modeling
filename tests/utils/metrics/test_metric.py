@@ -1,6 +1,7 @@
 """Test for utils/metrics/metric.py."""
 
 import os
+from typing import Any
 
 import numpy as np
 import pytest
@@ -8,7 +9,7 @@ import pytest
 from utils.metrics.metric import wasserstein_distances
 
 
-def test_wasserstein_distances(capsys):
+def test_wasserstein_distances(capsys: Any) -> None:
     """Test wasserstein_distances."""
     data1 = np.random.randint(0, 3, size=(5, 32, 32), dtype=np.uint8)
     data1[0, 0, :2] = [1, 2]  # Force to have 2 classes (in addition to 0)
@@ -46,9 +47,11 @@ def test_wasserstein_distances(capsys):
 
     # Case wrong inputs
     with pytest.raises(TypeError, match='.*data1.*'):
-        wasserstein_distances('indicators_list_1', indicators_list_2)
+        wasserstein_distances('indicators_list_1',  # type: ignore
+                              indicators_list_2)
     with pytest.raises(TypeError, match='.*data2.*'):
-        wasserstein_distances(indicators_list_1, 'indicators_list_2')
+        wasserstein_distances(indicators_list_1,
+                              'indicators_list_2')  # type: ignore
 
     # Case indicators with different length
     wasserstein_distances(indicators_list_1, indicators_list_2[:-1])
