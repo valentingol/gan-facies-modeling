@@ -4,9 +4,10 @@ config_save_path: configs/runs/run_wandb
 dataset_path: datasets/gansim_small.npy
 num_workers: 2
 
-training.total_time: 120
-training.sample_step: 200
-training.model_save_step: 200
+training.total_step: 300
+training.sample_step: 100
+training.model_save_step: 100
+training.metric_step: 100
 
 wandb.use_wandb: True
 wandb.entity: null

@@ -20,16 +20,13 @@ def data() -> Tuple[np.ndarray, np.ndarray]:
 def test_compute_indicators(data: Tuple[np.ndarray, np.ndarray]) -> None:
     """Test compute_indicators."""
     data_2d, data_3d = data
-    # Try different connectivity, unit_component_size and normalization
+    # Try different connectivity and unit_component_size
     indicators_list_1 = compute_indicators(data_2d, connectivity=2,
-                                           unit_component_size=1,
-                                           normalization='none')
+                                           unit_component_size=1)
     indicators_list_2 = compute_indicators(data_3d, connectivity=1,
-                                           unit_component_size=4,
-                                           normalization='normal')
+                                           unit_component_size=4)
     indicators_list_3 = compute_indicators(data_3d, connectivity=3,
-                                           unit_component_size=2,
-                                           normalization='linear')
+                                           unit_component_size=2)
     expected_keys = {'prop', 'proba', 'density', 'unit_prop',
                      'traversing_prop', 'num_connected', 'box_ratio',
                      'face_cell_ratio', 'sphericity', 'adj_to_0_prop'}
@@ -58,6 +55,3 @@ def test_compute_indicators(data: Tuple[np.ndarray, np.ndarray]) -> None:
     with pytest.raises(ValueError, match='Connectivity 3 is not supported '
                        'for 2D images.'):
         compute_indicators(data_2d, connectivity=3)
-    # Case wrong normalization
-    with pytest.raises(ValueError, match='.*_UNKNOWN_.*'):
-        compute_indicators(data_2d, normalization='_UNKNOWN_')

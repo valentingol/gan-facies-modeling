@@ -16,7 +16,6 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
                           data2: Union[np.ndarray, IndicatorsList],
                           connectivity: Optional[int] = None,
                           unit_component_size: int = 1,
-                          normalization: str = 'none',
                           save_boxes_path: Optional[str] = None
                           ) -> Tuple[Dict[str, float],
                                      Tuple[IndicatorsList, IndicatorsList]]:
@@ -42,10 +41,6 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
     unit_component_size : int, optional
         Maximum size to consider a component as a unit component.
         By default, 1.
-    normalization : str, optional
-        Normalization method. Must be one of 'none', 'normal' or 'linear'.
-        'none': no normalization, 'normal': standardization, 'linear':
-        linear normalization between 0 and 1. By default, 'none'.
     save_boxes_path : str or None, optional
         If not None or empty, save the boxes of the metrics to this path.
         By default, None.
@@ -72,8 +67,7 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
     if isinstance(data1, np.ndarray):
         indicators_list_1: list = compute_indicators(
             data1, connectivity=connectivity,
-            unit_component_size=unit_component_size,
-            normalization=normalization)
+            unit_component_size=unit_component_size)
     elif isinstance(data1, list):
         indicators_list_1 = data1
     else:
@@ -83,8 +77,7 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
     if isinstance(data2, np.ndarray):
         indicators_list_2: list = compute_indicators(
             data2, connectivity=connectivity,
-            unit_component_size=unit_component_size,
-            normalization=normalization)
+            unit_component_size=unit_component_size)
     elif isinstance(data2, list):
         indicators_list_2 = data2
     else:
@@ -109,8 +102,11 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
                                                          indicators_list_2)):
         for ind_name in indicators_1:
             metric_name = ind_name + f'_cls_{i + 1}'
-            metrics[metric_name] = w_dist(indicators_1[ind_name],
-                                          indicators_2[ind_name])
+            dist = w_dist(indicators_1[ind_name],
+                          indicators_2[ind_name])
+            # Normalize wasserstein distance by the expected value
+            mean = np.mean(indicators_1[ind_name] + indicators_2[ind_name])
+            metrics[metric_name] = dist / (mean + 1e-5)
 
     if save_boxes_path:
         n_classes = len(indicators_list_1)
@@ -130,6 +126,6 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
 #     data = np.load('datasets/gansim_small.npy')
 #     data1 = data[:len(data) // 2]
 #     data2 = data[len(data) // 2:]
-#     print(wasserstein_distances(data1, data2, normalization='none',
+#     print(wasserstein_distances(data1, data2,
 #                                 unit_component_size=4,
 #                                 save_boxes_path='perfect_metrics.png')[0])

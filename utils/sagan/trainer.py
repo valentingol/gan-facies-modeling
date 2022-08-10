@@ -9,9 +9,17 @@ import os.path as osp
 import time
 from typing import Dict, List, Union
 
+try:
+    import clearml
+except ImportError:
+    pass
+try:
+    import wandb
+except ImportError:
+    pass
+
 import numpy as np
 import torch
-import wandb
 from PIL import Image
 from rich.console import Console
 from torch.autograd import Variable
@@ -274,7 +282,7 @@ class TrainerSAGAN():
         print('Training finished. Final models saved.')
 
     def log(self, losses: Dict[str, torch.Tensor]) -> None:
-        """Log the training progress (and run wandb.log if enabled)."""
+        """Log the training progress."""
         rprint = self._console.print
 
         def log_row(key: str, value: Union[str, float, int],
@@ -315,13 +323,31 @@ class TrainerSAGAN():
         print()
 
         if self.config.wandb.use_wandb:
-            logs = self.get_log_for_wandb(metrics=losses,
-                                          avg_gammas=avg_gammas)
+            logs = self.get_log_to_dict(metrics=losses,
+                                        avg_gammas=avg_gammas)
             wandb.log(logs)
+        if self.config.clearml.use_clearml:
+            logs = self.get_log_to_dict(metrics=losses,
+                                        avg_gammas=avg_gammas)
+            for name, value in logs.items():
+                if name in {'sum_losses', 'abs_losses'}:
+                    title = 'Losses properties'
+                elif 'loss' in name:
+                    title = 'Losses'
+                elif 'gamma' in name:
+                    title = 'Avg gammas'
+                else:
+                    title = name
+                clearml.Logger.current_logger().report_scalar(
+                    title=title,
+                    series=name,
+                    value=value,
+                    iteration=self.step + 1,
+                )
 
-    def get_log_for_wandb(self, metrics: Dict[str, torch.Tensor],
-                          avg_gammas: List[float]) -> Dict[str, float]:
-        """Get dict logs from metrics and gammas for wandb."""
+    def get_log_to_dict(self, metrics: Dict[str, torch.Tensor],
+                        avg_gammas: List[float]) -> Dict[str, float]:
+        """Get dict logs from metrics and gammas to dictionary."""
         g_loss, d_loss = metrics['g_loss'].item(), metrics['d_loss'].item()
         logs = {
             'sum_losses': g_loss + d_loss,
@@ -409,6 +435,13 @@ class TrainerSAGAN():
         if self.config.wandb.use_wandb:
             images = wandb.Image(img_grid, caption=f"step {step + 1}")
             wandb.log({"generated_images": images})
+        if self.config.clearml.use_clearml:
+            clearml.Logger.current_logger().report_image(
+                "generated_images",
+                "generated_images",
+                iteration=step + 1,
+                image=img_grid
+            )
 
         if self.config.save_attn:
             # Save attention
@@ -490,6 +523,14 @@ class TrainerSAGAN():
             rprint(f"{w_dist:.3f}", style='bold #ddf502', end=' ')
         if config.wandb.use_wandb:
             wandb.log(w_dists)
+        if config.clearml.use_clearml:
+            for ind_name, value in w_dists.items():
+                clearml.Logger.current_logger().report_scalar(
+                    ind_name[:-len('_cls_*')],  # base name of indicator
+                    ind_name[-len('cls_*'):],  # class number
+                    value=value,
+                    iteration=self.step + 1,
+                )
         save_metrics_path = osp.join(self.metrics_save_path,
                                      f'metrics_step_{self.step + 1}.json')
         with open(save_metrics_path, 'w', encoding='utf-8') as file_out:

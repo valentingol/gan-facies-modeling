@@ -13,7 +13,8 @@ test_batch_size: 64
 trunc_ampl: -1  # truncation amplitude of inputs (for test only), negative to disable
 
 # Additional configs
+metrics_config_path: configs/default/metrics.yaml
 model_config_path: configs/default/model.yaml
 training_config_path: configs/default/training.yaml
+clearml_config_path: configs/default/clearml.yaml
 wandb_config_path: configs/default/wandb.yaml
-metrics_config_path: configs/default/metrics.yaml

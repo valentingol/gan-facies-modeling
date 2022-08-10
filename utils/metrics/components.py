@@ -4,10 +4,14 @@ These properties are used in utils/metrics/indicators.py.
 """
 from typing import Dict, List, Tuple
 
+import jax
 import jax.numpy as jnp
 import numpy as np
-from jax import jit
 from skimage.measure import label, regionprops
+
+# Force Jax using CPU (using Jax with GPU will enter in conflict
+# with Pytorch that should use all VRAM available)
+jax.config.update('jax_platform_name', 'cpu')
 
 PropertiesType = Dict[str, np.ndarray]
 
@@ -141,20 +145,25 @@ def get_props(components: np.ndarray,
         extents[im_id][:len(extents_im)] = extents_im
     # Get perimeters / surface areas
     perimeters = get_perimeter(components, neighbors, class_id)
+    if perimeters.shape == (0,):  # DEBUG
+        print('DEBUG: components', np.max(components))
+        print('DEBUG: areas', areas.shape)
     return areas, extents, perimeters
 
 
 def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
                   class_id: int) -> np.ndarray:
     """Compute perimeter or surface area."""
-    @jit
+    @jax.jit
     def perimeter_component_jit(components: jnp.ndarray,
                                 i: jnp.ndarray,
                                 mask_ext: jnp.ndarray) -> jnp.ndarray:
         """Compute perimeter of component i and stock it in perimeters."""
         axis = tuple(range(1, neighbors.ndim))
         mask_compo_i = jnp.expand_dims(components == i, axis=-1)
-        index = jnp.where(mask_compo_i & (mask_ext == 1), 1, 0)
+        index = jnp.where(mask_compo_i & (mask_ext == 1),
+                          jnp.array(1, dtype=jnp.uint8),
+                          jnp.array(0, dtype=jnp.uint8))
         perimeter = jnp.sum(index, axis=axis, dtype=jnp.int32)
         return perimeter
 

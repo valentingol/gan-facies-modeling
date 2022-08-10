@@ -15,8 +15,7 @@ from utils.metrics.components import get_components_properties
 
 
 def compute_indicators(data: np.ndarray, connectivity: Optional[int] = None,
-                       unit_component_size: int = 1,
-                       normalization: str = 'none'
+                       unit_component_size: int = 1
                        ) -> List[Dict[str, List[float]]]:
     """Compute class indicators from data.
 
@@ -25,18 +24,15 @@ def compute_indicators(data: np.ndarray, connectivity: Optional[int] = None,
     data : np.ndarray, dtype=np.uint8
         Batch of images of dims 3 (2D images) or 4 (3D images).
         Shape (n_images, [depth,] height, with).
-    connectivity : int
+    connectivity : int or None, optional
         Either 1 for 4-neighborhood (6-neighborhood in 3D)
         or 2 for 8-neighborhood (18-neighborhood in 3D)
         or 3 for 26-neighborhood in 3D (connectivity must be < 3 in 2D).
-        By default it is set to 2 for 2D images, 3 for 3D images.
+        If None, it is set to 2 for 2D images, 3 for 3D images.
+        By default, None.
     unit_component_size : int, optional
         Maximum size to consider a component as a unit component.
         By default, 1.
-    normalization : str, optional
-        Normalization method. Must be one of 'none', 'normal' or 'linear'.
-        'none': no normalization, 'normal': standardization, 'linear':
-        linear normalization between 0 and 1. By default, 'none'.
 
     Raises
     ------
@@ -45,7 +41,6 @@ def compute_indicators(data: np.ndarray, connectivity: Optional[int] = None,
         If data.ndim is not 2 or 3.
         If connectivity is not 1, 2, 3 or None
         If connectivity is 3 and data.ndim is 3 (2D images).
-        If normalization is not one of 'none', 'normal' or 'linear'.
 
     Returns
     -------
@@ -60,14 +55,10 @@ def compute_indicators(data: np.ndarray, connectivity: Optional[int] = None,
         raise ValueError(f'Data dim must be 3 (2D images) or 4 '
                          f'(3D images), found {data.ndim}.')
     if connectivity not in {1, 2, 3, None}:
-        raise ValueError('Connectivity must be 1 or 2, '
+        raise ValueError('Connectivity must be 1, 2, 3 or None.'
                          f'found {connectivity}.')
     if connectivity == 3 and data.ndim == 3:
         raise ValueError('Connectivity 3 is not supported for 2D images.')
-    if normalization not in ['none', 'normal', 'linear']:
-        raise ValueError(f'Normalisation unknown "{normalization}". Must be '
-                         'one of "none", "normal" (standardization) or '
-                         '"linear" (linear normalization between 0 and 1).')
 
     connectivity = data.ndim - 1 if connectivity is None else connectivity
 
@@ -79,8 +70,7 @@ def compute_indicators(data: np.ndarray, connectivity: Optional[int] = None,
     indicators_list = []
     for properties in properties_list:
         indicators = compute_indicators_from_props(properties, neighbors,
-                                                   n_classes=n_classes,
-                                                   normalization=normalization)
+                                                   n_classes=n_classes)
         indicators_list.append(indicators)
     return indicators_list
 
@@ -191,15 +181,9 @@ def sphericity(properties: Dict[str, np.ndarray]) -> np.ndarray:
 
 
 def compute_indicators_from_props(properties: Dict[str, np.ndarray],
-                                  neighbors: np.ndarray, n_classes: int,
-                                  normalization: str = 'normal'
+                                  neighbors: np.ndarray, n_classes: int
                                   ) -> Dict[str, List[float]]:
     """Compute all the indicators from properties and neighbors."""
-    assert normalization in ['none', 'normal', 'linear'], (
-        f'Normalisation unknown "{normalization}". Must be one of '
-        '"none", "normal" (standardization) or "linear" (linear '
-        'normalization between 0 and 1).')
-
     # Basic indicators
     indicators = {
         'prop': class_prop(properties),
@@ -224,17 +208,5 @@ def compute_indicators_from_props(properties: Dict[str, np.ndarray],
     # Normalization
     indicators_list = {}
     for ind_name, values in indicators.items():
-        if normalization == 'normal':
-            values_min = np.mean(values, keepdims=True)
-            values_std = np.std(values, keepdims=True)
-            indicators_list[ind_name] = ((values - values_min)
-                                         / (values_std + 1e-5)).tolist()
-        elif normalization == 'linear':
-            values_min = np.min(values, keepdims=True)
-            values_max = np.max(values, keepdims=True)
-            indicators_list[ind_name] = ((values - values_min)
-                                         / (values_max - values_min + 1e-5)
-                                         ).tolist()
-        elif normalization == 'none':
-            indicators_list[ind_name] = values.tolist()
+        indicators_list[ind_name] = values.tolist()
     return indicators_list

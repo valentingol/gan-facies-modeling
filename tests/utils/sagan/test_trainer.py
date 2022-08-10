@@ -82,11 +82,11 @@ def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
         # Remove tmp folders
         shutil.rmtree('res/tmp_test')
 
-    # Test get_log_for_wandb method
-    logs = trainer.get_log_for_wandb({'g_loss': torch.tensor(0.3),
-                                      'd_loss': torch.tensor(-0.2),
-                                      'test': torch.tensor(0.2)},
-                                     avg_gammas=[0.5, 0.6, 0.7])
+    # Test get_log_to_dict method
+    logs = trainer.get_log_to_dict({'g_loss': torch.tensor(0.3),
+                                    'd_loss': torch.tensor(-0.2),
+                                    'test': torch.tensor(0.2)},
+                                   avg_gammas=[0.5, 0.6, 0.7])
     expected_logs = {'g_loss': 0.3, 'd_loss': -0.2, 'test': 0.2,
                      'sum_losses': 0.1, 'abs_losses': 0.5,
                      'avg_gamma1': 0.5, 'avg_gamma2': 0.6,
