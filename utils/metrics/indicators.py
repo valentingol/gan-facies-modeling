@@ -184,7 +184,6 @@ def compute_indicators_from_props(properties: Dict[str, np.ndarray],
                                   neighbors: np.ndarray, n_classes: int
                                   ) -> Dict[str, List[float]]:
     """Compute all the indicators from properties and neighbors."""
-
     # Basic indicators
     indicators = {
         'prop': class_prop(properties),
