@@ -5,14 +5,23 @@ Underground facies (= kind of rocks) modeling with GANs.
 ![PythonVersion](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-informational)
 ![PytorchVersion](https://img.shields.io/badge/Pytorch-1.12-blue)
 [![License](https://img.shields.io/badge/license-MIT-white)](https://stringfixer.com/fr/MIT_license)
-[![GitHub User followers](https://img.shields.io/github/followers/valentingol?label=Owner%20followers&style=social)](https://github.com/valentingol)
-[![GitHub User's User stars](https://img.shields.io/github/stars/valentingol?label=Owner%20Stars&style=social)](https://github.com/valentingol)
+![WandB](https://img.shields.io/badge/WandB-supported-brightgreen)
+![ClearML](https://img.shields.io/badge/ClearML-supported-brightgreen)
 
 [![Flake8](https://github.com/valentingol/gan-facies-modeling/actions/workflows/flake.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/flake.yaml)
 [![Pydocstyle](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pydocstyle.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pydocstyle.yaml)
 [![MyPy](https://github.com/valentingol/gan-facies-modeling/actions/workflows/mypy.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/mypy.yaml)
 [![Isort](https://github.com/valentingol/gan-facies-modeling/actions/workflows/isort.yaml/badge.svg)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/isort.yaml)
 [![PyLint](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/valentingol/106c646ac67294657bccf02bbe22208f/raw/gan_facies_modeling_pylint.json)](https://github.com/valentingol/gan-facies-modeling/actions/workflows/pylint.yaml)
+
+---
+
+Date: 2022-07-20
+
+Author: [github@Valentingol](https://github/valentingol.com)
+
+[![GitHub User followers](https://img.shields.io/github/followers/valentingol?label=Owner%20followers&style=social)](https://github.com/valentingol)
+[![GitHub User's User stars](https://img.shields.io/github/stars/valentingol?label=Owner%20Stars&style=social)](https://github.com/valentingol)
 
 ---
 
@@ -134,30 +143,41 @@ to ensure that you can always recover the exact configuration used for the runs.
 The "hierarchy of merging" is also saved to understand quickly how the configuration
 was merged (with what experiment file(s) and what command line parameters).
 
-## Using Weights and Biases
+## Experimental Tracking : Weights and Biases and ClearML support
 
-[Weights and Biases](https://wandb.ai/site) (wandb) is a very popular platform
-to visualize the logs of a training session (curves, generated images, ...),
+[Weights and Biases](https://wandb.ai/site) (WandB) and [ClearML](https://clear.ml/)
+are two very popular platform of ML experience tracking, used to visualize the
+logs of a training session (curves, generated images, ...),
 compare the results of different runs and different configurations, reveal the
 more interesting parameters and many utilities to explore parameters space
 (collaboratively or not), etc.
 
-This repository allows to use wandb very simply. You can check the default
-configuration implying wandb in `configs/default/wandb.yaml`. To use wandb you
-should set `wandb.use_wandb: True` and adding the parameters for the wandb run.
+This repository allows to use WandB and ClearML very simply. You can check the default
+configuration implying WandB in `configs/default/wandb.yaml` and ClearML in
+`configs/default/clearml.yaml`. To use Wandb or ClearML you need to install
+one of them, create an account if you don't have one and set the configuration
+`wandb.use_wandb: True` or `clearml.use_clearml: True` in addition to the parameters
+for initialize the WandB run or ClearML task.
 
 Plus, you can explore the parameters space using `wandb.sweep`. To do so, you
 simply need to create a sweep config such as in `configs/sweep/ex_sweep.yaml`
 and set `wandb.sweep_config_path: <path/to/sweep/file>`.
 
-Two examples (using wandb without and with sweep) are available in `configs/exp`.
+Some examples (using wandb without and with sweep and ClearML) are available
+in `configs/exp`.
+
+Note:
+
+- It is currently not possible to use both ClearML and WandB at the same time
+- It is currently not possible to use hyperparameter search with ClearML in
+this repository (🚧)
 
 ## TODO list
 
 - [x] Add test for generator in `apps/train.py`
 - [x] Add generated results on GANSim dataset and
 [Stanford VI dataset](https://github.com/SCRFpublic/Stanford-VI-E/tree/master/Facies)
-(in progress 🚧)
+- [ ] Hyperparameter search with ClearML
 - [ ] Add conditional SAGAN
 - [ ] Add 3D models
 - [ ] Explore other architectures
