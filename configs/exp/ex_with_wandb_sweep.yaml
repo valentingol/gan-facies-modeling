@@ -1,6 +1,7 @@
 # Overwrite default configs
 run_name: run_wandb_sweep
-config_save_path: configs/runs/run_wandb_sweep
+config_save_path: res/configs/run_wandb_sweep
+output_dir: res
 dataset_path: datasets/gansim_small.npy
 num_workers: 2
 

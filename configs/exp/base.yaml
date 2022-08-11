@@ -1,6 +1,7 @@
 # Overwrite default configs
 run_name: run1
-config_save_path: configs/runs/run1
+config_save_path: res/configs/run1
+output_dir: res
 dataset_path: datasets/gansim_small.npy
 num_workers: 2
 
