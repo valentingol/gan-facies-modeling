@@ -120,14 +120,15 @@ class TrainerSAGAN():
         ema_decay = self.config.training.g_ema_decay
         ema_start_step = self.config.training.ema_start_step
         if ema_decay < 1.0 and ema_start_step <= self.step:
-            # Apply EMA on generator
-            for (_, old_param), (_, new_param) \
-                in zip(self.gen_ema.named_parameters(),
-                       self.gen.named_parameters()):
-                old_param_d = old_param.data.clone()
-                new_param_d = new_param.data.clone()
-                new_param.data.copy_(ema_decay * old_param_d
-                                     + (1.0-ema_decay) * new_param_d)
+            with torch.no_grad():
+                # Apply EMA on generator
+                for (_, old_param), (_, new_param) in \
+                        zip(self.gen_ema.named_parameters(),
+                            self.gen.named_parameters()):
+                    old_param_d = old_param.data.clone()
+                    new_param_d = new_param.data.clone()
+                    new_param.data.copy_(ema_decay * old_param_d
+                                         + (1.0-ema_decay) * new_param_d)
         return losses
 
     def train_discriminator(
