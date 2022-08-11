@@ -18,6 +18,7 @@ try:
 except ImportError:
     pass
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from PIL import Image
@@ -404,8 +405,7 @@ class TrainerSAGAN():
         self.indicators_path = dataset_body + '_indicators.json'
         if not osp.exists(self.indicators_path):
             print('Compute indicators from training dataset (used for '
-                  'metrics)...',
-                  end='')
+                  'metrics)...')
             data = np.load(self.config.dataset_path)
             np.random.shuffle(data)
             # Reduce the size of the dataset to speed up computation
@@ -414,7 +414,6 @@ class TrainerSAGAN():
             # Compute dataset indicators
             indicators_list = compute_indicators(
                 data, **self.config.metrics.get_dict())
-            print(' Done.')
             # Save indicators in the same folder as the dataset
             with open(self.indicators_path, 'w', encoding='utf-8') as file_out:
                 json.dump(indicators_list, file_out, separators=(',', ':'),
@@ -502,7 +501,7 @@ class TrainerSAGAN():
         print()
         data_gen_arr = np.vstack(data_gen)
         data_gen_arr = data_gen_arr.astype(np.uint8)
-        print(" -> Computing indicators...", end='')
+        print(" -> Computing indicators...")
 
         # Get reference indicators
         with open(self.indicators_path, 'r', encoding='utf-8') as file_in:
@@ -512,10 +511,26 @@ class TrainerSAGAN():
                                        f'boxes_step_{self.step + 1}.png')
         else:
             save_boxes_path = None
+
+        # Compute metrics and save boxes locally if needed
         w_dists: Dict[str, float] = wasserstein_distances(
             data_gen_arr, indicators_list_ref, save_boxes_path=save_boxes_path,
             **config.metrics)[0]
-        print(' done.')
+
+        # Log the metrics boxes in wandb or clearml if enabled
+        if save_boxes_path:
+            fig = plt.gcf()
+            if config.wandb.use_wandb:
+                wandb.log({"metrics boxes": wandb.Image(fig)})
+            if config.clearml.use_clearml:
+                clearml.Logger.current_logger().report_matplotlib_figure(
+                    'metrics boxes',
+                    f'iteration {self.step + 1}',
+                    figure=fig,
+                    iteration=self.step + 1
+                )
+
+        # Log the metrics in the console and wandb or clearml if enabled
         print("Wasserstein distances to **training** dataset indicators:")
         rprint = self._console.print
         for ind_name, w_dist in w_dists.items():
@@ -531,6 +546,8 @@ class TrainerSAGAN():
                     value=value,
                     iteration=self.step + 1,
                 )
+
+        # Save metrics locally in a json file
         save_metrics_path = osp.join(self.metrics_save_path,
                                      f'metrics_step_{self.step + 1}.json')
         with open(save_metrics_path, 'w', encoding='utf-8') as file_out:
