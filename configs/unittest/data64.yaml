@@ -2,6 +2,7 @@
 run_name: tmp_test
 config_save_path: configs/runs/tmp_test/config
 dataset_path: 'tests/datasets/data64.npy'  # use custom simple dataset
+output_dir: res
 save_attn: True
 
 model.attn_layer_num: [4]

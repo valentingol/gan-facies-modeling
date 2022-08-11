@@ -64,10 +64,11 @@ class TrainerSAGAN():
 
         # Paths
         run_name = config.run_name
-        self.attn_path = osp.join('res', run_name, 'attention')
-        self.metrics_save_path = osp.join('res', run_name, 'metrics')
-        self.model_save_path = osp.join('res', run_name, 'models')
-        self.sample_path = osp.join('res', run_name, 'samples')
+        output_dir = config.output_dir
+        self.attn_path = osp.join(output_dir, run_name, 'attention')
+        self.metrics_save_path = osp.join(output_dir, run_name, 'metrics')
+        self.model_save_path = osp.join(output_dir, run_name, 'models')
+        self.sample_path = osp.join(output_dir, run_name, 'samples')
 
         self._console = Console()
 
@@ -120,14 +121,15 @@ class TrainerSAGAN():
         ema_decay = self.config.training.g_ema_decay
         ema_start_step = self.config.training.ema_start_step
         if ema_decay < 1.0 and ema_start_step <= self.step:
-            # Apply EMA on generator
-            for (_, old_param), (_, new_param) \
-                in zip(self.gen_ema.named_parameters(),
-                       self.gen.named_parameters()):
-                old_param_d = old_param.data.clone()
-                new_param_d = new_param.data.clone()
-                new_param.data.copy_(ema_decay * old_param_d
-                                     + (1.0-ema_decay) * new_param_d)
+            with torch.no_grad():
+                # Apply EMA on generator
+                for (_, old_param), (_, new_param) in \
+                        zip(self.gen_ema.named_parameters(),
+                            self.gen.named_parameters()):
+                    old_param_d = old_param.data.clone()
+                    new_param_d = new_param.data.clone()
+                    new_param.data.copy_(ema_decay * old_param_d
+                                         + (1.0-ema_decay) * new_param_d)
         return losses
 
     def train_discriminator(
@@ -203,10 +205,11 @@ class TrainerSAGAN():
 
         # Create directories if not exist
         run_name = config.run_name
-        os.makedirs(osp.join('res', run_name, 'attention'), exist_ok=True)
-        os.makedirs(osp.join('res', run_name, 'metrics'), exist_ok=True)
-        os.makedirs(osp.join('res', run_name, 'models'), exist_ok=True)
-        os.makedirs(osp.join('res', run_name, 'samples'), exist_ok=True)
+        output_dir = config.output_dir
+        os.makedirs(osp.join(output_dir, run_name, 'attention'), exist_ok=True)
+        os.makedirs(osp.join(output_dir, run_name, 'metrics'), exist_ok=True)
+        os.makedirs(osp.join(output_dir, run_name, 'models'), exist_ok=True)
+        os.makedirs(osp.join(output_dir, run_name, 'samples'), exist_ok=True)
 
         # Get indicators from training dataset
         self.compute_train_indicators()
@@ -260,7 +263,8 @@ class TrainerSAGAN():
                 self.save_models()
 
             if (step+1) % config.training.metric_step == 0:
-                self.compute_metrics()
+                w_dists = self.compute_metrics()
+                self.log_metrics(w_dists)
 
             if (self.total_time >= 0
                     and time.time() - self.start_time >= self.total_time):
@@ -471,7 +475,7 @@ class TrainerSAGAN():
                 os.path.join(self.model_save_path,
                              f'discriminator_step_{step + 1}.pth'))
 
-    def compute_metrics(self) -> None:
+    def compute_metrics(self) -> Dict[str, float]:
         """Compute metrics."""
         print('Computing metrics...')
         config = self.config
@@ -516,6 +520,17 @@ class TrainerSAGAN():
         w_dists: Dict[str, float] = wasserstein_distances(
             data_gen_arr, indicators_list_ref, save_boxes_path=save_boxes_path,
             **config.metrics)[0]
+        return w_dists
+
+    def log_metrics(self, w_dists: Dict[str, float]) -> None:
+        """Log metrics in console and wandb/clearml if enabled."""
+        config = self.config
+
+        if config.training.save_boxes:
+            save_boxes_path = osp.join(self.metrics_save_path,
+                                       f'boxes_step_{self.step + 1}.png')
+        else:
+            save_boxes_path = None
 
         # Log the metrics boxes in wandb or clearml if enabled
         if save_boxes_path:
@@ -533,9 +548,12 @@ class TrainerSAGAN():
         # Log the metrics in the console and wandb or clearml if enabled
         print("Wasserstein distances to **training** dataset indicators:")
         rprint = self._console.print
-        for ind_name, w_dist in w_dists.items():
+        for i, (ind_name, w_dist) in enumerate(w_dists.items()):
             rprint(f"{ind_name}:", style='#ddf502', end=' ')
-            rprint(f"{w_dist:.3f}", style='bold #ddf502', end=' ')
+            rprint(f"{w_dist:.3f}", style='bold', end=' ')
+            if i % 6 == 5:
+                print()  # New line to improve readability
+        print()
         if config.wandb.use_wandb:
             wandb.log(w_dists)
         if config.clearml.use_clearml:
