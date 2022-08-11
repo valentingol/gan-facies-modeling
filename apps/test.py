@@ -24,7 +24,7 @@ def test(config: ConfigType) -> None:
     dataset = np.load(config.dataset_path)
     n_classes = dataset.max() + 1
 
-    model_dir = osp.join('res', config.run_name, 'models')
+    model_dir = osp.join(config.output_dir, config.run_name, 'models')
     step = config.recover_model_step
     if step <= 0:
         model_path = osp.join(model_dir, 'generator_last.pth')
@@ -45,7 +45,7 @@ def test(config: ConfigType) -> None:
     with torch.no_grad():
         images, attn_list = generator.generate(z_input, with_attn=True)
     # Save sample images in a grid
-    img_out_path = osp.join('res', config.run_name, 'samples',
+    img_out_path = osp.join(config.output_dir, config.run_name, 'samples',
                             'test_samples.png')
     img_grid = to_img_grid(images)
     pil_images = Image.fromarray(img_grid)
@@ -54,7 +54,8 @@ def test(config: ConfigType) -> None:
 
     if config.save_attn:
         # Save attention
-        attn_out_path = osp.join('res', config.run_name, 'attention',
+        attn_out_path = osp.join(config.output_dir, config.run_name,
+                                 'attention',
                                  'test_gen_attn')
         os.makedirs(attn_out_path, exist_ok=True)
         attn_list = [attn.detach().cpu().numpy() for attn in attn_list]

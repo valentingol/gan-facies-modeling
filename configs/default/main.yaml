@@ -2,6 +2,8 @@
 run_name: null  # (should be overwritten by the experiment config)
 config_save_path: null # (should be overwritten by the experiment config)
 dataset_path: null  # (should be overwritten by the experiment config)
+output_dir: res
+
 seed: 0
 use_wandb: False
 recover_model_step: 0  # the step to recover the model, 0 to not recover
