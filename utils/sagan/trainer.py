@@ -30,6 +30,7 @@ from utils.configs import ConfigType
 from utils.data.process import to_img_grid
 from utils.metrics import compute_indicators, wasserstein_distances
 from utils.sagan.modules import SADiscriminator, SAGenerator
+from utils.train.distributed import DataParallelModule
 from utils.train.time_utils import get_delta_eta
 
 
@@ -77,6 +78,8 @@ class TrainerSAGAN():
         # Start with trained model
         if config.recover_model_step > 0:
             self.load_pretrained_model(config.recover_model_step)
+
+        self.distribute_model()
 
         # EMA model if required
         if config.training.g_ema_decay < 1.0:
@@ -401,6 +404,11 @@ class TrainerSAGAN():
                 os.path.join(self.model_save_path,
                              f'discriminator_step_{step}.pth')))
         print(f'Loaded trained models (step: {step}).')
+
+    def distribute_model(self):
+        """Transform the models to distributed models."""
+        self.gen = DataParallelModule(self.gen)
+        self.disc = DataParallelModule(self.disc)
 
     def compute_train_indicators(self) -> None:
         """Compute indicators from training set if not already exist."""
