@@ -405,7 +405,7 @@ class TrainerSAGAN():
                              f'discriminator_step_{step}.pth')))
         print(f'Loaded trained models (step: {step}).')
 
-    def distribute_model(self):
+    def distribute_model(self) -> None:
         """Transform the models to distributed models."""
         self.gen = DataParallelModule(self.gen)
         self.disc = DataParallelModule(self.disc)

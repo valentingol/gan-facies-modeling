@@ -6,7 +6,7 @@ from torch import nn
 from utils.train.distributed import DataParallelModule
 
 
-def test_data_parallel_module():
+def test_data_parallel_module() -> None:
     """Test DataParallelModule class."""
     model = nn.Sequential(nn.Linear(3, 1, bias=False))
     model.n_params = model[0].weight.numel()
