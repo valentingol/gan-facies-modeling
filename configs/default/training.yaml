@@ -5,8 +5,10 @@ interrupt_threshold: -1.0
 batch_size: 64
 save_boxes: True  # save the metric boxes
 adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
+mixed_precision: False  # if True, use float16 instead of float32 for training
 
 g_ema_decay: 1.0  # decay of generator's exponential moving average (1.0 = no decay)
+d_ema_decay: 1.0
 d_iters: 1  # d_iters: number of time to train discriminator each time generator is trained
 g_lr: 0.0001
 d_lr: 0.0004

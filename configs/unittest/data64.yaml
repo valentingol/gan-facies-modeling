@@ -13,9 +13,11 @@ model.full_values: False
 model.init_method: normal
 
 training.adv_loss: wgan-gp
-training.g_ema_decay: 1  # disable ema
-
 training.batch_size: 2
+training.g_ema_decay: 1  # disable ema
+training.d_ema_decay: 1  # disable ema
+training.mixed_precision: True
+
 training.log_step: 1
 training.metric_step: 1000  # disable metric evaluation
 training.model_save_step: 2

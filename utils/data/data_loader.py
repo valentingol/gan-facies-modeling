@@ -49,7 +49,8 @@ class DataLoader2DFacies():
                                              batch_size=self.batch_size,
                                              shuffle=self.shuffle,
                                              num_workers=self.num_workers,
-                                             drop_last=True)
+                                             drop_last=True,
+                                             prefetch_factor=2)
         return loader
 
 

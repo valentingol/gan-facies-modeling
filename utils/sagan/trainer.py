@@ -2,7 +2,6 @@
 
 """Training class for SAGAN."""
 
-import copy
 import json
 import os
 import os.path as osp
@@ -71,8 +70,6 @@ class TrainerSAGAN():
         self.model_save_path = osp.join(output_dir, run_name, 'models')
         self.sample_path = osp.join(output_dir, run_name, 'samples')
 
-        self._console = Console()
-
         self.build_model()
 
         # Start with trained model
@@ -82,8 +79,9 @@ class TrainerSAGAN():
         self.distribute_model()
 
         # EMA model if required
-        if config.training.g_ema_decay < 1.0:
-            self.gen_ema = copy.deepcopy(self.gen)
+        # It will be overwritten when EMA actually starts *if enabled*
+        self.gen_ema = None
+        self.disc_ema = None
 
         # Fixed input for sampling
         if config.trunc_ampl > 0:
@@ -104,32 +102,44 @@ class TrainerSAGAN():
         adv_loss = self.config.training.adv_loss
         losses = {}
 
-        z = torch.randn(self.config.training.batch_size,
-                        self.config.model.z_dim).cuda()
-        fake_data, _ = self.gen(z)
+        if (self.gen_ema is None and self.config.training.g_ema_decay < 1.0
+                and self.step <= self.config.training.ema_start_step):
+            # Start EMA now
+            tmp_gen_path = osp.join(self.model_save_path, 'tmp_gen.pth')
+            torch.save(self.gen.state_dict(), tmp_gen_path)
+            self.gen_ema = torch.load(tmp_gen_path, map_location='cpu')
 
-        # Compute loss with fake data
-        g_out_fake, _ = self.disc(fake_data)  # batch x n
-        if adv_loss == 'wgan-gp':
-            g_loss = -g_out_fake.mean()
-        elif adv_loss == 'hinge':
-            g_loss = -g_out_fake.mean()
+        dtype_train = (torch.float16 if self.config.training.mixed_precision
+                       else torch.float32)
+        with torch.amp.autocast(device_type='cuda', dtype=dtype_train):
+            z = torch.randn(self.config.training.batch_size,
+                            self.config.model.z_dim).cuda()
+            fake_data, _ = self.gen(z)
+
+            # Compute loss with fake data
+            g_out_fake, _ = self.disc(fake_data)  # batch x n
+            if adv_loss == 'wgan-gp':
+                g_loss = -g_out_fake.mean()
+            elif adv_loss == 'hinge':
+                g_loss = -g_out_fake.mean()
+
+        self.reset_grad()
+        if self.gen_grad_scaler is not None:
+            self.gen_grad_scaler.scale(g_loss).backward()
+            self.gen_grad_scaler.step(self.g_optimizer)
+            self.gen_grad_scaler.update()
+        else:
+            g_loss.backward()
+            self.g_optimizer.step()
 
         losses['g_loss'] = g_loss
 
-        self.reset_grad()
-        g_loss.backward()
-        self.g_optimizer.step()
-
-        ema_decay = self.config.training.g_ema_decay
-        ema_start_step = self.config.training.ema_start_step
-        if ema_decay < 1.0 and ema_start_step <= self.step:
+        if self.gen_ema is not None:
+            ema_decay = self.config.training.g_ema_decay
             with torch.no_grad():
                 # Apply EMA on generator
-                for (_, old_param), (_, new_param) in \
-                        zip(self.gen_ema.named_parameters(),
-                            self.gen.named_parameters()):
-                    old_param_d = old_param.data.clone()
+                for (name_param, new_param) in self.gen.named_parameters():
+                    old_param_d = self.gen_ema[name_param].data.to('cuda')
                     new_param_d = new_param.data.clone()
                     new_param.data.copy_(ema_decay * old_param_d
                                          + (1.0-ema_decay) * new_param_d)
@@ -142,32 +152,33 @@ class TrainerSAGAN():
         batch_size = self.config.training.batch_size
         losses = {}
 
-        # Compute loss with real data
-        d_out_real, _ = self.disc(real_data)
-        if adv_loss == 'wgan-gp':
-            d_loss_real = -torch.mean(d_out_real)
-        elif adv_loss == 'hinge':
-            d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
+        if (self.disc_ema is None and self.config.training.d_ema_decay < 1.0
+                and self.step <= self.config.training.ema_start_step):
+            # Start EMA now
+            tmp_disc_path = osp.join(self.model_save_path, 'tmp_disc.pth')
+            torch.save(self.disc.state_dict(), tmp_disc_path)
+            self.disc_ema = torch.load(tmp_disc_path, map_location='cpu')
 
-        losses['d_loss_real'] = d_loss_real
+        dtype_train = (torch.float16 if self.config.training.mixed_precision
+                       else torch.float32)
 
-        # Apply Gumbel softmax
-        z = torch.randn(batch_size, self.config.model.z_dim).cuda()
-        fake_data, _ = self.gen(z)
-        d_out_fake, _ = self.disc(fake_data)
+        with torch.amp.autocast(device_type='cuda', dtype=dtype_train):
+            # Compute loss with real data
+            d_out_real, _ = self.disc(real_data)
+            if adv_loss == 'wgan-gp':
+                d_loss_real = -torch.mean(d_out_real)
+            elif adv_loss == 'hinge':
+                d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
 
-        if adv_loss == 'wgan-gp':
-            d_loss_fake = d_out_fake.mean()
-        elif adv_loss == 'hinge':
-            d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
+            # Apply Gumbel softmax
+            z = torch.randn(batch_size, self.config.model.z_dim).cuda()
+            fake_data, _ = self.gen(z)
+            d_out_fake, _ = self.disc(fake_data)
 
-        # Backward + Optimize
-        d_loss = d_loss_real + d_loss_fake
-        self.reset_grad()
-        d_loss.backward()
-        self.d_optimizer.step()
-
-        losses['d_loss'] = d_loss
+            if adv_loss == 'wgan-gp':
+                d_loss_fake = d_out_fake.mean()
+            elif adv_loss == 'hinge':
+                d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
 
         if adv_loss == 'wgan-gp':
             # Compute gradient penalty
@@ -179,22 +190,46 @@ class TrainerSAGAN():
             out, _ = self.disc(interpolated)
 
             grad = torch.autograd.grad(
-                outputs=out, inputs=interpolated,
-                grad_outputs=torch.ones(out.size()).cuda(), retain_graph=True,
+                outputs=out,
+                inputs=interpolated,
+                grad_outputs=torch.ones(out.size()).cuda(),
+                retain_graph=True,
                 create_graph=True, only_inputs=True)[0]
 
-            grad = grad.view(grad.size(0), -1)
-            grad_l2norm = torch.sqrt(torch.sum(grad**2, dim=1))
-            d_loss_gp = torch.mean((grad_l2norm - 1)**2)
+            with torch.amp.autocast(device_type='cuda', dtype=dtype_train):
+                grad = grad.view(grad.size(0), -1)
+                grad_l2norm = torch.sqrt(torch.sum(grad**2, dim=1))
+                d_loss_gp = torch.mean((grad_l2norm - 1)**2)
 
-            # Backward + Optimize
-            d_loss_gp = self.config.training.lambda_gp * d_loss_gp
-
-            self.reset_grad()
-            d_loss_gp.backward()
-            self.d_optimizer.step()
+                # Backward + Optimize
+                d_loss_gp = self.config.training.lambda_gp * d_loss_gp
 
             losses['d_loss_gp'] = d_loss_gp
+        else:
+            d_loss_gp = 0.0
+
+        # Backward + Optimize
+        d_loss = d_loss_real + d_loss_fake + d_loss_gp
+        self.reset_grad()
+        if self.disc_grad_scaler is not None:
+            self.disc_grad_scaler.scale(d_loss).backward()
+            self.disc_grad_scaler.step(self.d_optimizer)
+            self.disc_grad_scaler.update()
+        else:
+            d_loss.backward()
+            self.d_optimizer.step()
+        losses['d_loss_real'] = d_loss_real
+        losses['d_loss'] = d_loss
+
+        if self.disc_ema is not None:
+            ema_decay = self.config.training.d_ema_decay
+            with torch.no_grad():
+                # Apply EMA on discriminator
+                for (name_param, new_param) in self.disc.named_parameters():
+                    old_param_d = self.disc_ema[name_param].data.to('cuda')
+                    new_param_d = new_param.data.clone()
+                    new_param.data.copy_(ema_decay * old_param_d
+                                         + (1.0-ema_decay) * new_param_d)
 
         return losses
 
@@ -221,19 +256,20 @@ class TrainerSAGAN():
         data_iter = iter(self.data_loader)
 
         # Start with trained model
-        self.start_step = (config.recover_model_step
-                           + 1 if config.recover_model_step > 0 else 0)
+        self.start_step = (config.recover_model_step + 1
+                           if config.recover_model_step > 0 else 0)
 
         # Start time
         self.start_time = time.time()
 
         for step in range(self.start_step, self.total_step):
             self.step = step
+
+            self.disc.train()
+            self.gen.train()
+
             # Train Discriminator
             for _ in range(config.training.d_iters):
-                self.disc.train()
-                self.gen.train()
-
                 try:
                     real_data = next(data_iter)
                 except StopIteration:  # Restart data iterator
@@ -246,7 +282,6 @@ class TrainerSAGAN():
                     f'{config.training.batch_size}. If you are using a torch '
                     'data loader, you may consider set drop_last=True.')
                 real_data = real_data.cuda()
-
                 disc_losses = self.train_discriminator(real_data)
 
             # Train Generator
@@ -291,7 +326,7 @@ class TrainerSAGAN():
 
     def log(self, losses: Dict[str, torch.Tensor]) -> None:
         """Log the training progress."""
-        rprint = self._console.print
+        rprint = Console().print
 
         def log_row(key: str, value: Union[str, float, int],
                     style: str, size: int = 6) -> None:
@@ -393,6 +428,13 @@ class TrainerSAGAN():
             weight_decay=config.training.weight_decay,
         )
 
+        if config.training.mixed_precision:
+            self.gen_grad_scaler = torch.cuda.amp.GradScaler()
+            self.disc_grad_scaler = torch.cuda.amp.GradScaler()
+        else:
+            self.gen_grad_scaler = None
+            self.disc_grad_scaler = None
+
     def load_pretrained_model(self, step: int) -> None:
         """Load pre-trained model."""
         self.gen.load_state_dict(
@@ -493,7 +535,7 @@ class TrainerSAGAN():
         data_gen = []
         batch_size = config.training.batch_size
         with torch.no_grad():
-            for k in range(512 // batch_size):
+            for k in range(1 + 512 // batch_size):
                 if config.trunc_ampl > 0:
                     # Truncation trick
                     z_input = torch.fmod(
@@ -555,7 +597,7 @@ class TrainerSAGAN():
 
         # Log the metrics in the console and wandb or clearml if enabled
         print("Wasserstein distances to **training** dataset indicators:")
-        rprint = self._console.print
+        rprint = Console().print
         for i, (ind_name, w_dist) in enumerate(w_dists.items()):
             rprint(f"{ind_name}:", style='#ddf502', end=' ')
             rprint(f"{w_dist:.3f}", style='bold', end=' ')
