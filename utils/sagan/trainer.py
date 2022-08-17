@@ -109,9 +109,8 @@ class TrainerSAGAN():
             torch.save(self.gen.state_dict(), tmp_gen_path)
             self.gen_ema = torch.load(tmp_gen_path, map_location='cpu')
 
-        dtype_train = (torch.float16 if self.config.training.mixed_precision
-                       else torch.float32)
-        with torch.amp.autocast(device_type='cuda', dtype=dtype_train):
+        with torch.cuda.amp.autocast(
+                enabled=self.config.training.mixed_precision):
             z = torch.randn(self.config.training.batch_size,
                             self.config.model.z_dim).cuda()
             fake_data, _ = self.gen(z)
@@ -159,10 +158,8 @@ class TrainerSAGAN():
             torch.save(self.disc.state_dict(), tmp_disc_path)
             self.disc_ema = torch.load(tmp_disc_path, map_location='cpu')
 
-        dtype_train = (torch.float16 if self.config.training.mixed_precision
-                       else torch.float32)
-
-        with torch.amp.autocast(device_type='cuda', dtype=dtype_train):
+        with torch.cuda.amp.autocast(
+                enabled=self.config.training.mixed_precision):
             # Compute loss with real data
             d_out_real, _ = self.disc(real_data)
             if adv_loss == 'wgan-gp':
@@ -196,7 +193,8 @@ class TrainerSAGAN():
                 retain_graph=True,
                 create_graph=True, only_inputs=True)[0]
 
-            with torch.amp.autocast(device_type='cuda', dtype=dtype_train):
+            with torch.cuda.amp.autocast(
+                    enabled=self.config.training.mixed_precision):
                 grad = grad.view(grad.size(0), -1)
                 grad_l2norm = torch.sqrt(torch.sum(grad**2, dim=1))
                 d_loss_gp = torch.mean((grad_l2norm - 1)**2)
