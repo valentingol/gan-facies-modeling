@@ -103,7 +103,7 @@ class TrainerSAGAN():
         losses = {}
 
         if (self.gen_ema is None and self.config.training.g_ema_decay < 1.0
-                and self.step <= self.config.training.ema_start_step):
+                and self.step >= self.config.training.ema_start_step):
             # Start EMA now
             tmp_gen_path = osp.join(self.model_save_path, 'tmp_gen.pth')
             torch.save(self.gen.state_dict(), tmp_gen_path)
@@ -152,7 +152,7 @@ class TrainerSAGAN():
         losses = {}
 
         if (self.disc_ema is None and self.config.training.d_ema_decay < 1.0
-                and self.step <= self.config.training.ema_start_step):
+                and self.step >= self.config.training.ema_start_step):
             # Start EMA now
             tmp_disc_path = osp.join(self.model_save_path, 'tmp_disc.pth')
             torch.save(self.disc.state_dict(), tmp_disc_path)
