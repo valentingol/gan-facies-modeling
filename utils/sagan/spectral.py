@@ -32,6 +32,9 @@ class SpectralNorm(nn.Module):
         w_param = getattr(self.module, self.weight_name + "_bar")
         w_mat = w_param.view(w_param.data.shape[0], -1).data
 
+        u_param.data = u_param.data.type(w_mat.dtype)
+        v_param.data = v_param.data.type(w_mat.dtype)
+
         for _ in range(self.power_iterations):
             v_param.data = l2normalize(w_mat.T @ u_param.data)
             u_param.data = l2normalize(w_mat @ v_param.data)
@@ -55,8 +58,10 @@ class SpectralNorm(nn.Module):
 
         u_param = Parameter(
             w_param.data.new(height).normal_(0, 1), requires_grad=False)
+
         v_param = Parameter(
             w_param.data.new(width).normal_(0, 1), requires_grad=False)
+
         u_param.data = l2normalize(u_param.data)
         v_param.data = l2normalize(v_param.data)
         w_bar = Parameter(w_param.data)
