@@ -89,7 +89,7 @@ def get_connected_components(data: np.ndarray, class_id: int,
 
     Returns
     -------
-    components : np.ndarray, dtype=np.uint8
+    components : np.ndarray, dtype=np.int32
         Connected components labels of the same shape as data.
     """
     components = np.concatenate(
@@ -97,7 +97,7 @@ def get_connected_components(data: np.ndarray, class_id: int,
                connectivity=connectivity)[None, ...]
          for i in range(data.shape[0])],
         axis=0)
-    components = components.astype(np.uint8)
+    components = components.astype(np.int32)
     return components
 
 
@@ -145,9 +145,6 @@ def get_props(components: np.ndarray,
         extents[im_id][:len(extents_im)] = extents_im
     # Get perimeters / surface areas
     perimeters = get_perimeter(components, neighbors, class_id)
-    if perimeters.shape == (0,):  # DEBUG
-        print('DEBUG: components', np.max(components))
-        print('DEBUG: areas', areas.shape)
     return areas, extents, perimeters
 
 
@@ -179,7 +176,7 @@ def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
     # the components
     perimeters = []
 
-    components = jnp.array(components, dtype=jnp.uint8)
+    components = jnp.array(components, dtype=jnp.int32)
     mask_ext = jnp.array(mask_ext, dtype=jnp.uint8)
     for i in range(1, jnp.max(components) + 1):
         perimeter = perimeter_component_jit(components,
