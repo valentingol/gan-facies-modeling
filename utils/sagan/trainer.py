@@ -55,6 +55,10 @@ class TrainerSAGAN():
 
         # Config
         self.config = config
+        config_bs = config.training.batch_size
+        nproc_per_node = config.distributed.nproc_per_node or 1
+        nnodes = config.distributed.nnodes or 1
+        self.batch_size = config_bs // (nproc_per_node * nnodes)
 
         # Attributes that will be overwritten when the train will start:
         self.step = -1
@@ -158,11 +162,12 @@ class TrainerSAGAN():
                     data_iter = iter(data_loader)
                     real_data = next(data_iter)
 
-                assert real_data.shape[0] == config.training.batch_size, (
+                assert real_data.shape[0] == self.batch_size, (
                     'Batch size should always match the value in '
-                    f'configurations. Find {real_data.shape[0]} and '
-                    f'{config.training.batch_size}. If you are using a torch '
-                    'data loader, you may consider set drop_last=True.')
+                    'configurations divided by world size. Find '
+                    f'{real_data.shape[0]} and {self.batch_size}. '
+                    'If you are using a torch data loader, you may consider '
+                    'set drop_last=True.')
                 real_data = real_data.to(device)
                 disc, d_optimizer, disc_losses = self.train_discriminator(
                     disc, d_optimizer, gen, real_data, device)
