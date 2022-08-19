@@ -84,12 +84,12 @@ class TrainerSAGAN():
         # Fixed input for sampling
         if config.trunc_ampl > 0:
             # Truncation trick
-            self.fixed_z = torch.fmod(torch.randn(config.training.batch_size,
+            self.fixed_z = torch.fmod(torch.randn(self.batch_size,
                                                   config.model.z_dim,
                                                   device='cuda:0'),
                                       config.trunc_ampl)
         else:
-            self.fixed_z = torch.randn(config.training.batch_size,
+            self.fixed_z = torch.randn(self.batch_size,
                                        config.model.z_dim,
                                        device='cuda:0')
 
@@ -234,7 +234,7 @@ class TrainerSAGAN():
 
         with torch.cuda.amp.autocast(
                 enabled=self.config.training.mixed_precision):
-            z = torch.randn(self.config.training.batch_size,
+            z = torch.randn(self.batch_size,
                             self.config.model.z_dim).to(device)
             fake_data, _ = gen(z)
 
@@ -274,7 +274,6 @@ class TrainerSAGAN():
                                        Dict[str, torch.Tensor]]:
         """Train the discriminator."""
         adv_loss = self.config.training.adv_loss
-        batch_size = self.config.training.batch_size
         losses = {}
 
         if (self.disc_ema is None and self.config.training.d_ema_decay < 1.0
@@ -294,7 +293,8 @@ class TrainerSAGAN():
                 d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
 
             # Apply Gumbel softmax
-            z = torch.randn(batch_size, self.config.model.z_dim).to(device)
+            z = torch.randn(self.batch_size,
+                            self.config.model.z_dim).to(device)
             fake_data, _ = gen(z)
             d_out_fake, _ = disc(fake_data)
 
@@ -305,7 +305,7 @@ class TrainerSAGAN():
 
         if adv_loss == 'wgan-gp':
             # Compute gradient penalty
-            alpha = torch.rand(batch_size, 1, 1, 1).to(device)
+            alpha = torch.rand(self.batch_size, 1, 1, 1).to(device)
             alpha = alpha.expand_as(real_data)
             interpolated = Variable(
                 alpha * real_data.data + (1-alpha) * fake_data.data,
@@ -565,25 +565,25 @@ class TrainerSAGAN():
         gen.eval()
         print(" -> Generating images", end='\r')
         data_gen = []
-        batch_size = config.training.batch_size
         with torch.no_grad():
-            for k in range(1 + 512 // batch_size):
+            for k in range(1 + 512 // self.batch_size):
                 if config.trunc_ampl > 0:
                     # Truncation trick
                     z_input = torch.fmod(
-                        torch.randn(config.training.batch_size,
+                        torch.randn(self.batch_size,
                                     config.model.z_dim,
                                     device='cuda:0'),
                         config.trunc_ampl)
                 else:
-                    z_input = torch.randn(config.training.batch_size,
+                    z_input = torch.randn(self.batch_size,
                                           config.model.z_dim,
                                           device='cuda:0')
                 out, _ = gen(z_input)
                 out = torch.argmax(out, dim=1).detach().cpu().numpy()
                 torch.cuda.empty_cache()  # Free GPU memory
                 data_gen.append(out)
-                print(f" -> Generating images: {(k + 1)*batch_size} images",
+                print(f" -> Generating images: {(k + 1)*self.batch_size}"
+                      " images",
                       end='\r')
         print()
         data_gen_arr = np.vstack(data_gen)
