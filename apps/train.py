@@ -38,7 +38,7 @@ def train(config: ConfigType) -> None:
     data_loader = DataLoader2DFacies(dataset_path=config.dataset_path,
                                      data_size=config.model.data_size,
                                      batch_size=batch_size, shuffle=True,
-                                     num_workers=config.num_workers).loader()
+                                     num_workers=config.num_workers)
     # Model
     if architecture == 'sagan':
         trainer = TrainerSAGAN(data_loader, config)

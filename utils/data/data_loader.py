@@ -1,5 +1,6 @@
 """Data classes."""
 
+import ignite.distributed as idist
 import numpy as np
 import torch
 from torch.utils.data import Dataset
@@ -36,7 +37,7 @@ class DataLoader2DFacies():
         self.num_workers = num_workers
 
     def loader(self) -> torch.utils.data.DataLoader:
-        """Return the data loader (Pytorch DataLoader).
+        """Return the data loader, automatically distributed if multiple GPUs.
 
         Returns
         -------
@@ -45,12 +46,12 @@ class DataLoader2DFacies():
             torch tensors of shape (batch_size, n_classes,
             data_size, data_size).
         """
-        loader = torch.utils.data.DataLoader(dataset=self.dataset,
-                                             batch_size=self.batch_size,
-                                             shuffle=self.shuffle,
-                                             num_workers=self.num_workers,
-                                             drop_last=True,
-                                             prefetch_factor=2)
+        loader = idist.auto_dataloader(dataset=self.dataset,
+                                       batch_size=self.batch_size,
+                                       num_workers=self.num_workers,
+                                       shuffle=self.shuffle,
+                                       drop_last=True,
+                                       prefetch_factor=2)
         return loader
 
 

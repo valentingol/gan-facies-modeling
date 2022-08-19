@@ -26,4 +26,5 @@ training.model_save_step: 2
 training.sample_step: 2
 training.total_step: 6
 
+clearml.use_clearml: False
 wandb.use_wandb: False

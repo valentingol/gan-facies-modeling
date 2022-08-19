@@ -1,0 +1,4 @@
+--- !distributed
+backend: gloo
+nproc_per_node: null
+nnodes: 2
