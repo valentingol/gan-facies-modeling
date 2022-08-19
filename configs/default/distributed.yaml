@@ -1,4 +1,4 @@
 --- !distributed
-backend: gloo
+backend: nccl
 nproc_per_node: null
-nnodes: 2
+nnodes: null
