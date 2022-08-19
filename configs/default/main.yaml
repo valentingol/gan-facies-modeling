@@ -20,3 +20,4 @@ model_config_path: configs/default/model.yaml
 training_config_path: configs/default/training.yaml
 clearml_config_path: configs/default/clearml.yaml
 wandb_config_path: configs/default/wandb.yaml
+distributed_config_path: configs/default/distributed.yaml
