@@ -6,7 +6,7 @@ import json
 import os
 import os.path as osp
 import time
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Tuple, Union
 
 try:
     import clearml
@@ -17,19 +17,20 @@ try:
 except ImportError:
     pass
 
+import ignite.distributed as idist
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from PIL import Image
 from rich.console import Console
 from torch.autograd import Variable
-from torch.utils.data import DataLoader
+from torch.nn import Module
+from torch.optim import Optimizer
 
 from utils.configs import ConfigType
 from utils.data.process import to_img_grid
 from utils.metrics import compute_indicators, wasserstein_distances
 from utils.sagan.modules import SADiscriminator, SAGenerator
-from utils.train.distributed import DataParallelModule
 from utils.train.time_utils import get_delta_eta
 
 
@@ -38,18 +39,19 @@ class TrainerSAGAN():
 
     Parameters
     ----------
-    data_loader : torch.utils.data.DataLoader
-        Pytorch DataLoader returning batches of one-hot-encoded
-        torch tensors of shape (batch_size, n_classes,
-        data_size, data_size).
+    data_loader : Any
+        Object returning a torch.utils.data.DataLoader when called with
+        data_loader.loader() and containing an attribute n_classes.
+        The DataLoader should return batches of one-hot-encoded torch
+        tensors of shape (batch_size, n_classes, data_size, data_size).
+    config : ConfigType
+        Global configuration.
     """
 
-    def __init__(self, data_loader: DataLoader, config: ConfigType) -> None:
-
+    def __init__(self, data_loader: Any, config: ConfigType) -> None:
         # Data loader
         self.data_loader = data_loader
-        data = next(iter(self.data_loader))
-        self.n_classes = data.shape[1]
+        self.n_classes = data_loader.n_classes
 
         # Config
         self.config = config
@@ -70,15 +72,7 @@ class TrainerSAGAN():
         self.model_save_path = osp.join(output_dir, run_name, 'models')
         self.sample_path = osp.join(output_dir, run_name, 'samples')
 
-        self.build_model()
-
-        # Start with trained model
-        if config.recover_model_step > 0:
-            self.load_pretrained_model(config.recover_model_step)
-
-        self.distribute_model()
-
-        # EMA model if required
+        # EMA models
         # It will be overwritten when EMA actually starts *if enabled*
         self.gen_ema = None
         self.disc_ema = None
@@ -88,151 +82,25 @@ class TrainerSAGAN():
             # Truncation trick
             self.fixed_z = torch.fmod(torch.randn(config.training.batch_size,
                                                   config.model.z_dim,
-                                                  device='cuda'),
+                                                  device='cuda:0'),
                                       config.trunc_ampl)
         else:
             self.fixed_z = torch.randn(config.training.batch_size,
                                        config.model.z_dim,
-                                       device='cuda')
+                                       device='cuda:0')
 
         self.indicators_path = ''  # Will be overwritten during training
 
-    def train_generator(self) -> Dict[str, torch.Tensor]:
-        """Train the generator."""
-        adv_loss = self.config.training.adv_loss
-        losses = {}
-
-        if (self.gen_ema is None and self.config.training.g_ema_decay < 1.0
-                and self.step >= self.config.training.ema_start_step):
-            # Start EMA now
-            tmp_gen_path = osp.join(self.model_save_path, 'tmp_gen.pth')
-            torch.save(self.gen.state_dict(), tmp_gen_path)
-            self.gen_ema = torch.load(tmp_gen_path, map_location='cpu')
-
-        with torch.cuda.amp.autocast(
-                enabled=self.config.training.mixed_precision):
-            z = torch.randn(self.config.training.batch_size,
-                            self.config.model.z_dim).cuda()
-            fake_data, _ = self.gen(z)
-
-            # Compute loss with fake data
-            g_out_fake, _ = self.disc(fake_data)  # batch x n
-            if adv_loss == 'wgan-gp':
-                g_loss = -g_out_fake.mean()
-            elif adv_loss == 'hinge':
-                g_loss = -g_out_fake.mean()
-
-        self.reset_grad()
-        if self.gen_grad_scaler is not None:
-            self.gen_grad_scaler.scale(g_loss).backward()
-            self.gen_grad_scaler.step(self.g_optimizer)
-            self.gen_grad_scaler.update()
+        # Gradient scaler for mixed precision training
+        if config.training.mixed_precision:
+            self.gen_grad_scaler = torch.cuda.amp.GradScaler()
+            self.disc_grad_scaler = torch.cuda.amp.GradScaler()
         else:
-            g_loss.backward()
-            self.g_optimizer.step()
-
-        losses['g_loss'] = g_loss
-
-        if self.gen_ema is not None:
-            ema_decay = self.config.training.g_ema_decay
-            with torch.no_grad():
-                # Apply EMA on generator
-                for (name_param, new_param) in self.gen.named_parameters():
-                    old_param_d = self.gen_ema[name_param].data.to('cuda')
-                    new_param_d = new_param.data.clone()
-                    new_param.data.copy_(ema_decay * old_param_d
-                                         + (1.0-ema_decay) * new_param_d)
-        return losses
-
-    def train_discriminator(
-            self, real_data: torch.Tensor) -> Dict[str, torch.Tensor]:
-        """Train the discriminator."""
-        adv_loss = self.config.training.adv_loss
-        batch_size = self.config.training.batch_size
-        losses = {}
-
-        if (self.disc_ema is None and self.config.training.d_ema_decay < 1.0
-                and self.step >= self.config.training.ema_start_step):
-            # Start EMA now
-            tmp_disc_path = osp.join(self.model_save_path, 'tmp_disc.pth')
-            torch.save(self.disc.state_dict(), tmp_disc_path)
-            self.disc_ema = torch.load(tmp_disc_path, map_location='cpu')
-
-        with torch.cuda.amp.autocast(
-                enabled=self.config.training.mixed_precision):
-            # Compute loss with real data
-            d_out_real, _ = self.disc(real_data)
-            if adv_loss == 'wgan-gp':
-                d_loss_real = -torch.mean(d_out_real)
-            elif adv_loss == 'hinge':
-                d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
-
-            # Apply Gumbel softmax
-            z = torch.randn(batch_size, self.config.model.z_dim).cuda()
-            fake_data, _ = self.gen(z)
-            d_out_fake, _ = self.disc(fake_data)
-
-            if adv_loss == 'wgan-gp':
-                d_loss_fake = d_out_fake.mean()
-            elif adv_loss == 'hinge':
-                d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
-
-        if adv_loss == 'wgan-gp':
-            # Compute gradient penalty
-            alpha = torch.rand(batch_size, 1, 1, 1).cuda()
-            alpha = alpha.expand_as(real_data)
-            interpolated = Variable(
-                alpha * real_data.data + (1-alpha) * fake_data.data,
-                requires_grad=True)
-            out, _ = self.disc(interpolated)
-
-            grad = torch.autograd.grad(
-                outputs=out,
-                inputs=interpolated,
-                grad_outputs=torch.ones(out.size()).cuda(),
-                retain_graph=True,
-                create_graph=True, only_inputs=True)[0]
-
-            with torch.cuda.amp.autocast(
-                    enabled=self.config.training.mixed_precision):
-                grad = grad.view(grad.size(0), -1)
-                grad_l2norm = torch.sqrt(torch.sum(grad**2, dim=1))
-                d_loss_gp = torch.mean((grad_l2norm - 1)**2)
-
-                # Backward + Optimize
-                d_loss_gp = self.config.training.lambda_gp * d_loss_gp
-
-            losses['d_loss_gp'] = d_loss_gp
-        else:
-            d_loss_gp = 0.0
-
-        # Backward + Optimize
-        d_loss = d_loss_real + d_loss_fake + d_loss_gp
-        self.reset_grad()
-        if self.disc_grad_scaler is not None:
-            self.disc_grad_scaler.scale(d_loss).backward()
-            self.disc_grad_scaler.step(self.d_optimizer)
-            self.disc_grad_scaler.update()
-        else:
-            d_loss.backward()
-            self.d_optimizer.step()
-        losses['d_loss_real'] = d_loss_real
-        losses['d_loss'] = d_loss
-
-        if self.disc_ema is not None:
-            ema_decay = self.config.training.d_ema_decay
-            with torch.no_grad():
-                # Apply EMA on discriminator
-                for (name_param, new_param) in self.disc.named_parameters():
-                    old_param_d = self.disc_ema[name_param].data.to('cuda')
-                    new_param_d = new_param.data.clone()
-                    new_param.data.copy_(ema_decay * old_param_d
-                                         + (1.0-ema_decay) * new_param_d)
-
-        return losses
+            self.gen_grad_scaler = None
+            self.disc_grad_scaler = None
 
     def train(self) -> None:
-        """Train SAGAN."""
+        """Train the GAN on multiple GPUs."""
         config = self.config
         adv_loss = config.training.adv_loss
         assert adv_loss in ['wgan-gp', 'hinge'], (
@@ -250,8 +118,24 @@ class TrainerSAGAN():
         # Get indicators from training dataset
         self.compute_train_indicators()
 
+        # Distribute the training over all available GPUs
+        with idist.Parallel(**self.config.distributed) as parallel:
+            parallel.run(self.local_train)
+
+        print('Training finished. Final models saved.')
+
+    def local_train(self, rank: int) -> None:
+        """Train the model on a single process."""
+        config = self.config
+        device = idist.device()
+
+        # Create models and optimizers, eventually load parameters from
+        # recovered step and distribute the model on the good device
+        gen, disc, g_optimizer, d_optimizer = self.build_model_opt()
+
         # Data iterator
-        data_iter = iter(self.data_loader)
+        data_loader = self.data_loader.loader()
+        data_iter = iter(data_loader)
 
         # Start with trained model
         self.start_step = (config.recover_model_step + 1
@@ -263,15 +147,15 @@ class TrainerSAGAN():
         for step in range(self.start_step, self.total_step):
             self.step = step
 
-            self.disc.train()
-            self.gen.train()
+            disc.train()
+            gen.train()
 
             # Train Discriminator
             for _ in range(config.training.d_iters):
                 try:
                     real_data = next(data_iter)
                 except StopIteration:  # Restart data iterator
-                    data_iter = iter(self.data_loader)
+                    data_iter = iter(data_loader)
                     real_data = next(data_iter)
 
                 assert real_data.shape[0] == config.training.batch_size, (
@@ -279,27 +163,34 @@ class TrainerSAGAN():
                     f'configurations. Find {real_data.shape[0]} and '
                     f'{config.training.batch_size}. If you are using a torch '
                     'data loader, you may consider set drop_last=True.')
-                real_data = real_data.cuda()
-                disc_losses = self.train_discriminator(real_data)
+                real_data = real_data.to(device)
+                disc, d_optimizer, disc_losses = self.train_discriminator(
+                    disc, d_optimizer, gen, real_data, device)
+
+            if self.step == 0:
+                print(f' - process n°{rank}, first row data '
+                      '(only print at step 0):')
+                print('   ', real_data[0, 0, 0])
 
             # Train Generator
-            gen_losses = self.train_generator()
+            gen, g_optimizer, gen_losses = self.train_generator(
+                gen, g_optimizer, disc, device)
 
             losses = {**disc_losses, **gen_losses}
 
             # Print out log info
-            if (step+1) % config.training.log_step == 0:
-                self.log(losses)
+            if (step+1) % config.training.log_step == 0 and rank == 0:
+                self.log(losses, gen)
 
             # Sample data
-            if (step+1) % config.training.sample_step == 0:
-                self.save_sample_and_attention()
+            if (step+1) % config.training.sample_step == 0 and rank == 0:
+                self.save_sample_and_attention(gen)
 
-            if (step+1) % config.training.model_save_step == 0:
-                self.save_models()
+            if (step+1) % config.training.model_save_step == 0 and rank == 0:
+                self.save_models(gen, disc, last=False)
 
-            if (step+1) % config.training.metric_step == 0:
-                w_dists = self.compute_metrics()
+            if (step+1) % config.training.metric_step == 0 and rank == 0:
+                w_dists = self.compute_metrics(gen)
                 self.log_metrics(w_dists)
 
             if (self.total_time >= 0
@@ -319,10 +210,149 @@ class TrainerSAGAN():
                       'number to disable this feature).')
                 break
         # Save the final models
-        self.save_models(last=True)
-        print('Training finished. Final models saved.')
+        if rank == 0:
+            self.save_models(gen, disc, last=True)
 
-    def log(self, losses: Dict[str, torch.Tensor]) -> None:
+    def train_generator(self, gen: Module, g_optimizer: Optimizer,
+                        disc: Module, device: torch.device
+                        ) -> Tuple[Module, Optimizer, Dict[str, torch.Tensor]]:
+        """Train the generator."""
+        adv_loss = self.config.training.adv_loss
+        losses = {}
+
+        if (self.gen_ema is None and self.config.training.g_ema_decay < 1.0
+                and self.step >= self.config.training.ema_start_step):
+            # Start EMA now
+            tmp_gen_path = osp.join(self.model_save_path, 'tmp_gen.pth')
+            torch.save(gen.state_dict(), tmp_gen_path)
+            self.gen_ema = torch.load(tmp_gen_path, map_location='cpu')
+
+        with torch.cuda.amp.autocast(
+                enabled=self.config.training.mixed_precision):
+            z = torch.randn(self.config.training.batch_size,
+                            self.config.model.z_dim).to(device)
+            fake_data, _ = gen(z)
+
+            # Compute loss with fake data
+            g_out_fake, _ = disc(fake_data)  # batch x n
+            if adv_loss == 'wgan-gp':
+                g_loss = -g_out_fake.mean()
+            elif adv_loss == 'hinge':
+                g_loss = -g_out_fake.mean()
+
+        g_optimizer.zero_grad()
+        if self.gen_grad_scaler is not None:
+            self.gen_grad_scaler.scale(g_loss).backward()
+            self.gen_grad_scaler.step(g_optimizer)
+            self.gen_grad_scaler.update()
+        else:
+            g_loss.backward()
+            g_optimizer.step()
+
+        losses['g_loss'] = g_loss
+
+        if self.gen_ema is not None:
+            ema_decay = self.config.training.g_ema_decay
+            with torch.no_grad():
+                # Apply EMA on generator
+                for (name_param, new_param) in gen.named_parameters():
+                    old_param_d = self.gen_ema[name_param].data.to(device)
+                    new_param_d = new_param.data.clone()
+                    new_param.data.copy_(ema_decay * old_param_d
+                                         + (1.0-ema_decay) * new_param_d)
+        return gen, g_optimizer, losses
+
+    def train_discriminator(self, disc: Module, d_optimizer: Optimizer,
+                            gen: Module, real_data: torch.Tensor,
+                            device: torch.device
+                            ) -> Tuple[Module, Optimizer,
+                                       Dict[str, torch.Tensor]]:
+        """Train the discriminator."""
+        adv_loss = self.config.training.adv_loss
+        batch_size = self.config.training.batch_size
+        losses = {}
+
+        if (self.disc_ema is None and self.config.training.d_ema_decay < 1.0
+                and self.step >= self.config.training.ema_start_step):
+            # Start EMA now
+            tmp_disc_path = osp.join(self.model_save_path, 'tmp_disc.pth')
+            torch.save(disc.state_dict(), tmp_disc_path)
+            self.disc_ema = torch.load(tmp_disc_path, map_location='cpu')
+
+        with torch.cuda.amp.autocast(
+                enabled=self.config.training.mixed_precision):
+            # Compute loss with real data
+            d_out_real, _ = disc(real_data)
+            if adv_loss == 'wgan-gp':
+                d_loss_real = -torch.mean(d_out_real)
+            elif adv_loss == 'hinge':
+                d_loss_real = torch.nn.ReLU()(1.0 - d_out_real).mean()
+
+            # Apply Gumbel softmax
+            z = torch.randn(batch_size, self.config.model.z_dim).to(device)
+            fake_data, _ = gen(z)
+            d_out_fake, _ = disc(fake_data)
+
+            if adv_loss == 'wgan-gp':
+                d_loss_fake = d_out_fake.mean()
+            elif adv_loss == 'hinge':
+                d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
+
+        if adv_loss == 'wgan-gp':
+            # Compute gradient penalty
+            alpha = torch.rand(batch_size, 1, 1, 1).to(device)
+            alpha = alpha.expand_as(real_data)
+            interpolated = Variable(
+                alpha * real_data.data + (1-alpha) * fake_data.data,
+                requires_grad=True)
+            out, _ = disc(interpolated)
+
+            grad = torch.autograd.grad(
+                outputs=out,
+                inputs=interpolated,
+                grad_outputs=torch.ones(out.size()).to(device),
+                retain_graph=True,
+                create_graph=True, only_inputs=True)[0]
+
+            with torch.cuda.amp.autocast(
+                    enabled=self.config.training.mixed_precision):
+                grad = grad.view(grad.size(0), -1)
+                grad_l2norm = torch.sqrt(torch.sum(grad**2, dim=1))
+                d_loss_gp = torch.mean((grad_l2norm - 1)**2)
+
+                # Backward + Optimize
+                d_loss_gp = self.config.training.lambda_gp * d_loss_gp
+
+            losses['d_loss_gp'] = d_loss_gp
+        else:
+            d_loss_gp = 0.0
+
+        # Backward + Optimize
+        d_loss = d_loss_real + d_loss_fake + d_loss_gp
+        d_optimizer.zero_grad()
+        if self.disc_grad_scaler is not None:
+            self.disc_grad_scaler.scale(d_loss).backward()
+            self.disc_grad_scaler.step(d_optimizer)
+            self.disc_grad_scaler.update()
+        else:
+            d_loss.backward()
+            d_optimizer.step()
+        losses['d_loss_real'] = d_loss_real
+        losses['d_loss'] = d_loss
+
+        if self.disc_ema is not None:
+            ema_decay = self.config.training.d_ema_decay
+            with torch.no_grad():
+                # Apply EMA on discriminator
+                for (name_param, new_param) in disc.named_parameters():
+                    old_param_d = self.disc_ema[name_param].data.to(device)
+                    new_param_d = new_param.data.clone()
+                    new_param.data.copy_(ema_decay * old_param_d
+                                         + (1.0-ema_decay) * new_param_d)
+
+        return disc, d_optimizer, losses
+
+    def log(self, losses: Dict[str, torch.Tensor], gen: Module) -> None:
         """Log the training progress."""
         rprint = Console().print
 
@@ -333,7 +363,6 @@ class TrainerSAGAN():
             rprint(f'{key}: ', style=style, end='')
             rprint(f'{value}', style='bold ' + style, end='', highlight=False)
             print(' | ', end='')
-
         start_time = self.start_time
         start_step = self.start_step
         step = self.step
@@ -342,12 +371,12 @@ class TrainerSAGAN():
         step_str = f'{step + 1}'.rjust(len(str(self.total_step)))
 
         avg_gammas, attn_id = [], 1
-        while hasattr(self.gen, f'attn{attn_id}'):
-            avg_gamma = getattr(self.gen, f'attn{attn_id}').gamma
+
+        while hasattr(gen, f'attn{attn_id}'):
+            avg_gamma = getattr(gen, f'attn{attn_id}').gamma
             avg_gamma = torch.abs(avg_gamma).mean().item()
             avg_gammas.append(avg_gamma)
             attn_id += 1
-
         print(
             f"Step {step_str}/{self.total_step} "
             f"[{delta_str} < {eta_str}] ", end='')
@@ -400,55 +429,54 @@ class TrainerSAGAN():
             logs[f'avg_gamma{i + 1}'] = avg_gamma
         return logs
 
-    def reset_grad(self) -> None:
-        """Reset the optimizer gradient buffers."""
-        self.d_optimizer.zero_grad()
-        self.g_optimizer.zero_grad()
+    def build_model_opt(self) -> Tuple[Module, Module, Optimizer, Optimizer]:
+        """Build generator, discriminator and the optimizers.
 
-    def build_model(self) -> None:
-        """Build generator, discriminator and the optimizers."""
+        Create the models from SAGAN architecture. Load the parameters
+        from recovered checkpoint if enabled, create the Adam optimizer,
+        and distribute the models and optimizers on the good device
+        automatically. Note that batch norm are also synchronized
+        through all the devices.
+        """
         config = self.config
-        self.gen = SAGenerator(n_classes=self.n_classes,
-                               model_config=self.config.model).cuda()
-        self.disc = SADiscriminator(n_classes=self.n_classes,
-                                    model_config=self.config.model).cuda()
+        gen = SAGenerator(n_classes=self.n_classes,
+                          model_config=self.config.model)
+        disc = SADiscriminator(n_classes=self.n_classes,
+                               model_config=self.config.model)
 
-        self.g_optimizer = torch.optim.Adam(
+        g_optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad,
-                   self.gen.parameters()), lr=config.training.g_lr,
+                   gen.parameters()), lr=config.training.g_lr,
             betas=(config.training.beta1, config.training.beta2),
             weight_decay=config.training.weight_decay,
         )
-        self.d_optimizer = torch.optim.Adam(
+        d_optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad,
-                   self.disc.parameters()), lr=config.training.d_lr,
+                   disc.parameters()), lr=config.training.d_lr,
             betas=(config.training.beta1, config.training.beta2),
             weight_decay=config.training.weight_decay,
         )
 
-        if config.training.mixed_precision:
-            self.gen_grad_scaler = torch.cuda.amp.GradScaler()
-            self.disc_grad_scaler = torch.cuda.amp.GradScaler()
-        else:
-            self.gen_grad_scaler = None
-            self.disc_grad_scaler = None
+        # Eventually load pre-trained parameters
+        if config.recover_model_step > 0:
+            step = config.recover_model_step
+            gen.load_state_dict(
+                torch.load(
+                    os.path.join(self.model_save_path,
+                                 f'generator_step_{step}.pth')))
+            disc.load_state_dict(
+                torch.load(
+                    os.path.join(self.model_save_path,
+                                 f'discriminator_step_{step}.pth')))
+            print(f'Loaded trained models (step: {step}).')
 
-    def load_pretrained_model(self, step: int) -> None:
-        """Load pre-trained model."""
-        self.gen.load_state_dict(
-            torch.load(
-                os.path.join(self.model_save_path,
-                             f'generator_step_{step}.pth')))
-        self.disc.load_state_dict(
-            torch.load(
-                os.path.join(self.model_save_path,
-                             f'discriminator_step_{step}.pth')))
-        print(f'Loaded trained models (step: {step}).')
+        # Auto-distribute
+        gen = idist.auto_model(gen, sync_bn=True)
+        disc = idist.auto_model(disc, sync_bn=True)
+        g_optimizer = idist.auto_optim(g_optimizer)
+        d_optimizer = idist.auto_optim(d_optimizer)
 
-    def distribute_model(self) -> None:
-        """Transform the models to distributed models."""
-        self.gen = DataParallelModule(self.gen)
-        self.disc = DataParallelModule(self.disc)
+        return gen, disc, g_optimizer, d_optimizer
 
     def compute_train_indicators(self) -> None:
         """Compute indicators from training set if not already exist."""
@@ -471,11 +499,11 @@ class TrainerSAGAN():
                 json.dump(indicators_list, file_out, separators=(',', ':'),
                           sort_keys=False, indent=4)
 
-    def save_sample_and_attention(self) -> None:
+    def save_sample_and_attention(self, gen: Module) -> None:
         """Save sample images and eventually attention maps."""
-        self.gen.eval()
+        gen.eval()
         step = self.step
-        images, gen_attns = self.gen.generate(self.fixed_z, with_attn=True)
+        images, gen_attns = gen.generate(self.fixed_z, with_attn=True)
 
         # Save sample images in a grid
         out_path = os.path.join(self.sample_path,
@@ -503,32 +531,33 @@ class TrainerSAGAN():
                 os.makedirs(attn_path, exist_ok=True)
                 np.save(osp.join(attn_path, f'attn_{i}.npy'), gen_attn)
 
-    def save_models(self, last: bool = False) -> None:
+    def save_models(self, gen: Module, disc: Module,
+                    last: bool = False) -> None:
         """Save generator and discriminator."""
         if last:
             torch.save(
-                self.gen.state_dict(),
+                gen.state_dict(),
                 os.path.join(self.model_save_path, 'generator_last.pth'))
             torch.save(
-                self.disc.state_dict(),
+                disc.state_dict(),
                 os.path.join(self.model_save_path, 'discriminator_last.pth'))
         else:
             step = self.step
             torch.save(
-                self.gen.state_dict(),
+                gen.state_dict(),
                 os.path.join(self.model_save_path,
                              f'generator_step_{step + 1}.pth'))
             torch.save(
-                self.disc.state_dict(),
+                disc.state_dict(),
                 os.path.join(self.model_save_path,
                              f'discriminator_step_{step + 1}.pth'))
 
-    def compute_metrics(self) -> Dict[str, float]:
-        """Compute metrics."""
+    def compute_metrics(self, gen: Module) -> Dict[str, float]:
+        """Compute metrics from input generator."""
         print('Computing metrics...')
         config = self.config
         # Generate images (over 500 2D images)
-        self.gen.eval()
+        gen.eval()
         print(" -> Generating images", end='\r')
         data_gen = []
         batch_size = config.training.batch_size
@@ -539,14 +568,15 @@ class TrainerSAGAN():
                     z_input = torch.fmod(
                         torch.randn(config.training.batch_size,
                                     config.model.z_dim,
-                                    device='cuda'),
+                                    device='cuda:0'),
                         config.trunc_ampl)
                 else:
                     z_input = torch.randn(config.training.batch_size,
                                           config.model.z_dim,
-                                          device='cuda')
-                out, _ = self.gen(z_input)
+                                          device='cuda:0')
+                out, _ = gen(z_input)
                 out = torch.argmax(out, dim=1).detach().cpu().numpy()
+                torch.cuda.empty_cache()  # Free GPU memory
                 data_gen.append(out)
                 print(f" -> Generating images: {(k + 1)*batch_size} images",
                       end='\r')
