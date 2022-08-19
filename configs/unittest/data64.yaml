@@ -4,6 +4,7 @@ config_save_path: configs/runs/tmp_test/config
 dataset_path: 'tests/datasets/data64.npy'  # use custom simple dataset
 output_dir: res
 save_attn: True
+trunc_ampl: 1.0
 
 model.attn_layer_num: [4]
 model.data_size: 64
@@ -24,4 +25,5 @@ training.model_save_step: 2
 training.sample_step: 2
 training.total_step: 2
 
+clearml.use_clearml: False
 wandb.use_wandb: False
