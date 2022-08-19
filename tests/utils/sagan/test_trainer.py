@@ -6,7 +6,6 @@ import shutil
 from typing import Tuple
 
 import numpy as np
-import pytest
 import torch
 from torch.utils.data import DataLoader
 
@@ -14,51 +13,59 @@ from utils.configs import GlobalConfig
 from utils.sagan.trainer import TrainerSAGAN
 
 
-@pytest.fixture
-def data_loaders() -> Tuple[DataLoader, DataLoader]:
-    """Return trainers with data size 32 and 64."""
-    data_loader_32 = torch.utils.data.DataLoader(
-        dataset=torch.randn(10, 4, 32, 32), batch_size=2, shuffle=True,
-        num_workers=0,
-    )
-    data_loader_64 = torch.utils.data.DataLoader(
-        dataset=torch.randn(10, 4, 64, 64), batch_size=2, shuffle=True,
-        num_workers=0,
-    )
-    return data_loader_32, data_loader_64
+class DataLoader64():
+    """Data loader for unit tests (data size 64)."""
+
+    def __init__(self) -> None:
+        self.n_classes = 4
+
+    def loader(self) -> DataLoader:
+        """Return pytorch data loader."""
+        return torch.utils.data.DataLoader(
+            dataset=torch.randn(10, 4, 64, 64), batch_size=2,
+            shuffle=True,
+            num_workers=0,
+        )
 
 
-def build_trainers(
-    data_loaders: Tuple[DataLoader, DataLoader]
-) -> Tuple[TrainerSAGAN, TrainerSAGAN]:
+class DataLoader32():
+    """Data loader for unit tests (data size 32)."""
+
+    def __init__(self) -> None:
+        self.n_classes = 4
+
+    def loader(self) -> DataLoader:
+        """Return pytorch data loader."""
+        return torch.utils.data.DataLoader(
+            dataset=torch.randn(10, 4, 32, 32), batch_size=2,
+            shuffle=True,
+            num_workers=0,
+        )
+
+
+def build_trainers() -> Tuple[TrainerSAGAN, TrainerSAGAN]:
     """Return trainers with data size 32 and 64."""
     config32 = GlobalConfig().build_from_argv(
         fallback='configs/unittest/data32.yaml')
     config64 = GlobalConfig().build_from_argv(
         fallback='configs/unittest/data64.yaml')
-    # NOTE: creates configs at configs/runs/tmp_test
-
-    trainer32 = TrainerSAGAN(data_loaders[0], config32)
-    trainer64 = TrainerSAGAN(data_loaders[1], config64)
+    trainer32 = TrainerSAGAN(DataLoader32(), config32)
+    trainer64 = TrainerSAGAN(DataLoader64(), config64)
     return trainer32, trainer64
 
 
 # Test TrainerSAGAN
 
 
-def test_init(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
+def test_init() -> None:
     """Test init method."""
-    trainers = build_trainers(data_loaders)
-    for trainer in trainers:
-        assert (hasattr(trainer, 'gen') and hasattr(trainer, 'disc')
-                and hasattr(trainer, 'd_optimizer')
-                and hasattr(trainer, 'g_optimizer'))
+    build_trainers()
     # Remove tmp folders
     if osp.exists('configs/runs/tmp_test'):
         shutil.rmtree('configs/runs/tmp_test')
 
 
-def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
+def test_train() -> None:
     """Test train method."""
     # Create random datasets
     data32 = np.random.randint(0, 4, size=(5, 32, 32), dtype=np.uint8)
@@ -67,7 +74,7 @@ def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
     np.save('tests/datasets/data32.npy', data32)
     np.save('tests/datasets/data64.npy', data64)
 
-    trainers = build_trainers(data_loaders)
+    trainers = build_trainers()
     for i, trainer in enumerate(trainers):
         trainer.train()
         assert osp.exists('res/tmp_test/models/generator_step_2.pth')
@@ -77,8 +84,6 @@ def test_train(data_loaders: Tuple[DataLoader, DataLoader]) -> None:
             assert osp.exists('res/tmp_test/metrics/boxes_step_4.png')
             assert osp.exists('res/tmp_test/metrics/metrics_step_4.json')
         assert osp.exists('res/tmp_test/attention/gen_attn_step_2/attn_0.npy')
-        # Test load_pretrained_model method
-        trainer.load_pretrained_model(2)
         # Remove tmp folders
         shutil.rmtree('res/tmp_test')
 
