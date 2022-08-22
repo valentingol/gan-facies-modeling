@@ -172,31 +172,32 @@ class TrainerSAGAN():
                 disc, d_optimizer, disc_losses = self.train_discriminator(
                     disc, d_optimizer, gen, real_data, device)
 
-            if self.step == 0:
-                print(f' - process n°{rank}, first row data '
-                      '(only print at step 0):')
-                print('   ', real_data[0, 0, 0])
-
             # Train Generator
             gen, g_optimizer, gen_losses = self.train_generator(
                 gen, g_optimizer, disc, device)
 
             losses = {**disc_losses, **gen_losses}
 
-            # Print out log info
-            if (step+1) % config.training.log_step == 0 and rank == 0:
-                self.log(losses, gen)
+            if rank == 0:
+                base_gen = (gen if not hasattr(gen, 'module')
+                            else gen.module)
+                base_disc = (disc if not hasattr(disc, 'module')
+                             else disc.module)
 
-            # Sample data
-            if (step+1) % config.training.sample_step == 0 and rank == 0:
-                self.save_sample_and_attention(gen)
+                # Print out log info
+                if (step+1) % config.training.log_step == 0:
+                    self.log(losses, base_gen)
 
-            if (step+1) % config.training.model_save_step == 0 and rank == 0:
-                self.save_models(gen, disc, last=False)
+                # Sample data
+                if (step+1) % config.training.sample_step == 0:
+                    self.save_sample_and_attention(base_gen)
 
-            if (step+1) % config.training.metric_step == 0 and rank == 0:
-                w_dists = self.compute_metrics(gen)
-                self.log_metrics(w_dists)
+                if (step+1) % config.training.model_save_step == 0:
+                    self.save_models(base_gen, base_disc, last=False)
+
+                if (step+1) % config.training.metric_step == 0:
+                    w_dists = self.compute_metrics(base_gen)
+                    self.log_metrics(w_dists)
 
             if (self.total_time >= 0
                     and time.time() - self.start_time >= self.total_time):
@@ -216,7 +217,9 @@ class TrainerSAGAN():
                 break
         # Save the final models
         if rank == 0:
-            self.save_models(gen, disc, last=True)
+            base_gen = gen if not hasattr(gen, 'module') else gen.module
+            base_disc = disc if not hasattr(disc, 'module') else disc.module
+            self.save_models(base_gen, base_disc, last=True)
 
     def train_generator(self, gen: Module, g_optimizer: Optimizer,
                         disc: Module, device: torch.device
@@ -303,6 +306,19 @@ class TrainerSAGAN():
             elif adv_loss == 'hinge':
                 d_loss_fake = torch.nn.ReLU()(1.0 + d_out_fake).mean()
 
+        # Backward + Optimize
+        d_loss = d_loss_real + d_loss_fake
+        d_optimizer.zero_grad()
+        if self.disc_grad_scaler is not None:
+            self.disc_grad_scaler.scale(d_loss).backward()
+            self.disc_grad_scaler.step(d_optimizer)
+            self.disc_grad_scaler.update()
+        else:
+            d_loss.backward()
+            d_optimizer.step()
+        losses['d_loss_real'] = d_loss_real
+        losses['d_loss'] = d_loss
+
         if adv_loss == 'wgan-gp':
             # Compute gradient penalty
             alpha = torch.rand(self.batch_size, 1, 1, 1).to(device)
@@ -328,22 +344,21 @@ class TrainerSAGAN():
                 # Backward + Optimize
                 d_loss_gp = self.config.training.lambda_gp * d_loss_gp
 
-            losses['d_loss_gp'] = d_loss_gp
-        else:
-            d_loss_gp = 0.0
+                # NOTE this trick allows triggering backward gradient
+                # hooks for DataDistributedParallel. It is discuss here
+                # https://github.com/pytorch/pytorch/issues/47562
+                d_loss_gp += 0.0 * out[0]
 
-        # Backward + Optimize
-        d_loss = d_loss_real + d_loss_fake + d_loss_gp
-        d_optimizer.zero_grad()
-        if self.disc_grad_scaler is not None:
-            self.disc_grad_scaler.scale(d_loss).backward()
-            self.disc_grad_scaler.step(d_optimizer)
-            self.disc_grad_scaler.update()
-        else:
-            d_loss.backward()
-            d_optimizer.step()
-        losses['d_loss_real'] = d_loss_real
-        losses['d_loss'] = d_loss
+            # Backward + Optimize
+            d_optimizer.zero_grad()
+            if self.disc_grad_scaler is not None:
+                self.disc_grad_scaler.scale(d_loss_gp).backward()
+                self.disc_grad_scaler.step(d_optimizer)
+                self.disc_grad_scaler.update()
+            else:
+                d_loss_gp.backward()
+                d_optimizer.step()
+            losses['d_loss_gp'] = d_loss_gp
 
         if self.disc_ema is not None:
             ema_decay = self.config.training.d_ema_decay
@@ -444,6 +459,7 @@ class TrainerSAGAN():
         through all the devices.
         """
         config = self.config
+        device = idist.device()
         gen = SAGenerator(n_classes=self.n_classes,
                           model_config=self.config.model)
         disc = SADiscriminator(n_classes=self.n_classes,
@@ -468,11 +484,13 @@ class TrainerSAGAN():
             gen.load_state_dict(
                 torch.load(
                     os.path.join(self.model_save_path,
-                                 f'generator_step_{step}.pth')))
+                                 f'generator_step_{step}.pth'),
+                    map_location=device))
             disc.load_state_dict(
                 torch.load(
                     os.path.join(self.model_save_path,
-                                 f'discriminator_step_{step}.pth')))
+                                 f'discriminator_step_{step}.pth'),
+                    map_location=device))
             print(f'Loaded trained models (step: {step}).')
 
         # Auto-distribute
