@@ -47,7 +47,7 @@ def get_components_properties(data: np.ndarray, connectivity: int,
         By convention, the neighbors outside the images are set to 255
         (equivalent to -1 in np.uint8 dtype).
     """
-    n_classes: int = np.max(data)  # 0 is not considered as a class here
+    n_classes = int(np.max(data))  # 0 is not considered as a class here
     properties_list = []
     neighbors = get_neighbors(data, connectivity)
     for class_id in range(1, n_classes + 1):

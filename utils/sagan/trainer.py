@@ -21,6 +21,7 @@ import ignite.distributed as idist
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from einops import rearrange
 from PIL import Image
 from rich.console import Console
 from torch.autograd import Variable
@@ -337,7 +338,7 @@ class TrainerSAGAN():
 
             with torch.cuda.amp.autocast(
                     enabled=self.config.training.mixed_precision):
-                grad = grad.view(grad.size(0), -1)
+                grad = rearrange(grad, 'shape0 ... -> shape0 (...)')
                 grad_l2norm = torch.sqrt(torch.sum(grad**2, dim=1))
                 d_loss_gp = torch.mean((grad_l2norm - 1)**2)
 
@@ -345,8 +346,8 @@ class TrainerSAGAN():
                 d_loss_gp = self.config.training.lambda_gp * d_loss_gp
 
                 # NOTE this trick allows triggering backward gradient
-                # hooks for DataDistributedParallel. It is discuss here
-                # https://github.com/pytorch/pytorch/issues/47562
+                # hooks for DataDistributedParallel models. It is discuss
+                # here: https://github.com/pytorch/pytorch/issues/47562
                 d_loss_gp += 0.0 * out[0]
 
             # Backward + Optimize
