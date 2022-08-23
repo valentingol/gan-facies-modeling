@@ -6,6 +6,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
+from einops import rearrange
 from torch import nn
 
 from utils.configs import ConfigType
@@ -74,18 +75,20 @@ class SelfAttention(nn.Module):
         attention : torch.Tensor
             Attention maps of shape (B, W*H~queries, W*H~keys)
         """
-        batch_size, _, width, height = x.size()
-        queries = self.query_conv(x).view(batch_size, -1, width * height)
-        queries = queries.permute(0, 2, 1)  # (B, W*H~query, Cqk)
-        keys = self.key_conv(x).view(batch_size, -1,
-                                     width * height)  # (B, Cqk, W*H~key)
-        unnorm_attention = torch.bmm(queries, keys)  # (B, W*H~query, W*H~key)
-        attention = nn.Softmax(dim=-1)(unnorm_attention)
-        values = self.value_conv(x).view(batch_size, -1,
-                                         width * height)  # (B, Cv, W*H~value)
+        _, _, width, height = x.size()
+        queries = self.query_conv(x)
+        keys = self.key_conv(x)
+        values = self.value_conv(x)
 
-        out = torch.bmm(values, attention.permute(0, 2, 1))  # (B, Cv, W*H)
-        out = out.view(batch_size, -1, width, height)  # (B, Cv, W, H)
+        queries = rearrange(queries, 'B Cqk Wq Hq -> B (Wq Hq) Cqk')
+        keys = rearrange(keys, 'B Cqk Wk Hk -> B Cqk (Wk Hk)')
+        unnorm_attention = torch.bmm(queries, keys)  # (B, WH~query, WH~key)
+        attention = nn.Softmax(dim=-1)(unnorm_attention)
+        attention_t = rearrange(attention, 'B WHq WHk -> B WHk WHq')
+
+        values = rearrange(values, 'B Cv Wv Hv -> B Cv (Wv Hv)')
+        out = torch.bmm(values, attention_t)  # (B, Cv, WH)
+        out = rearrange(out, 'B Cv (W H) -> B Cv W H', W=width, H=height)
 
         if self.out_conv is not None:
             out = self.out_conv(out)
@@ -298,7 +301,7 @@ class SAGenerator(nn.Module):
             of shape (B, W*H~queries, W*H~keys).
         """
         att_list: List[torch.Tensor] = []
-        x = z.view(z.size(0), z.size(1), 1, 1)
+        x = rearrange(z, 'B z_dim -> B z_dim 1 1')
         for i in range(1, self.num_blocks):
             x = getattr(self, f'conv{i}')(x)
             if self.make_attention[i - 1]:

@@ -5,6 +5,7 @@
 from typing import Dict, Optional, Tuple
 
 import torch
+from einops import rearrange
 from torch import nn
 from torch.nn import Parameter
 
@@ -30,7 +31,7 @@ class SpectralNorm(nn.Module):
         u_param = getattr(self.module, self.weight_name + "_u")
         v_param = getattr(self.module, self.weight_name + "_v")
         w_param = getattr(self.module, self.weight_name + "_bar")
-        w_mat = w_param.view(w_param.data.shape[0], -1).data
+        w_mat = rearrange(w_param, "shape0 ... -> shape0 (...)").data
 
         u_param.data = u_param.data.type(w_mat.dtype)
         v_param.data = v_param.data.type(w_mat.dtype)
@@ -53,8 +54,8 @@ class SpectralNorm(nn.Module):
 
     def _make_params(self) -> None:
         w_param = getattr(self.module, self.weight_name)
-        height = w_param.data.shape[0]
-        width = w_param.view(height, -1).data.shape[1]
+        height = w_param.shape[0]
+        width = rearrange(w_param, "shape0 ... -> shape0 (...)").shape[1]
 
         u_param = Parameter(
             w_param.data.new(height).normal_(0, 1), requires_grad=False)
