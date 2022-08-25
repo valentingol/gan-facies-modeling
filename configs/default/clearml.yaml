@@ -1,8 +1,0 @@
---- !clearml
-use_clearml: False
-project_name: null # (should be overwritten by the experiment config if use_clearml is True)
-task_name: null # (should be overwritten by the experiment config if use_clearml is True)
-tags: null
-# continue_last_task: null or False to start new task, True to continue the last task,
-# string containing an ID to continue a specific task with the given ID
-continue_last_task: null

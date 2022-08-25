@@ -5,6 +5,9 @@ dataset_path: 'tests/datasets/data32.npy'  # use custom simple dataset
 output_dir: res
 save_attn: True
 
+data.train_batch_size: 2
+data.test_batch_size: 3
+
 model.attn_layer_num: [1, 2, 3]
 model.data_size: 32
 model.d_conv_dim: 8
@@ -13,7 +16,6 @@ model.full_values: True
 model.init_method: orthogonal
 
 training.adv_loss: hinge
-training.batch_size: 2
 training.ema_start_step: 0
 training.g_ema_decay: 0.999
 training.d_ema_decay: 0.999

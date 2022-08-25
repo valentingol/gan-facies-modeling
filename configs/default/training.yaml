@@ -1,8 +1,9 @@
 --- !training
+# Note: training batch_size in in data sub-config
+
 # interrupt_threshold: stop the training if the sum of the absolute losses are
 # above this value (negative to disable)
 interrupt_threshold: -1.0
-batch_size: 64
 save_boxes: True  # save the metric boxes
 adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
 mixed_precision: False  # if True, use float16 instead of float32 for training
