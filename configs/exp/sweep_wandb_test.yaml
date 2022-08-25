@@ -3,7 +3,6 @@ run_name: run_wandb_sweep
 config_save_path: res/configs/run_wandb_sweep
 output_dir: res
 dataset_path: datasets/gansim_small.npy
-num_workers: 2
 
 training.total_step: 300
 training.sample_step: 100
@@ -16,4 +15,4 @@ wandb.project: test_sagan_with_wandb_and_sweep
 wandb.mode: online
 
 # Add a sweep
-wandb.sweep_config_path: configs/sweep/ex_sweep.yaml
+wandb.sweep_config_path: configs/exp/sweep/ex_sweep.yaml
