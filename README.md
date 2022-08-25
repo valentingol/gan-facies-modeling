@@ -177,7 +177,6 @@ this repository (🚧)
 - [x] Add test for generator in `apps/train.py`
 - [x] Add generated results on GANSim dataset and
 [Stanford VI dataset](https://github.com/SCRFpublic/Stanford-VI-E/tree/master/Facies)
-- [ ] Hyperparameter search with ClearML
 - [ ] Add conditional SAGAN
 - [ ] Add 3D models
 - [ ] Explore other architectures
