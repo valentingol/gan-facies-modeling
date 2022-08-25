@@ -25,7 +25,6 @@ def train(config: ConfigType) -> None:
     if not torch.cuda.is_available():
         raise ValueError('CUDA is not available and is required for training.')
 
-    batch_size = config.training.batch_size
     architecture = config.model.architecture
 
     # Improve reproducibility
@@ -37,8 +36,9 @@ def train(config: ConfigType) -> None:
     # Data loader
     data_loader = DataLoader2DFacies(dataset_path=config.dataset_path,
                                      data_size=config.model.data_size,
-                                     batch_size=batch_size, shuffle=True,
-                                     num_workers=config.num_workers)
+                                     training=True,
+                                     data_config=config.data,
+                                     augmentation_fn=None)
     # Model
     if architecture == 'sagan':
         trainer = TrainerSAGAN(data_loader, config)
