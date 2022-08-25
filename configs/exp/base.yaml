@@ -3,9 +3,13 @@ run_name: run1
 config_save_path: res/configs/run1
 output_dir: res
 dataset_path: datasets/gansim_small.npy
-num_workers: 2
+
+data.num_workers: 2
 
 training.total_step: 300
 training.sample_step: 100
 training.model_save_step: 100
 training.metric_step: 100
+
+clearml.use_clearml: False
+wandb.use_wandb: False

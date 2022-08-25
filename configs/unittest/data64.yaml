@@ -6,6 +6,8 @@ output_dir: res
 save_attn: True
 trunc_ampl: 1.0
 
+data.train_batch_size: 2
+
 model.attn_layer_num: [4]
 model.data_size: 64
 model.d_conv_dim: 12
@@ -14,7 +16,6 @@ model.full_values: False
 model.init_method: normal
 
 training.adv_loss: wgan-gp
-training.batch_size: 2
 training.g_ema_decay: 1  # disable ema
 training.d_ema_decay: 1  # disable ema
 training.mixed_precision: True

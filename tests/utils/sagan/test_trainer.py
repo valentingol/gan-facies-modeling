@@ -10,13 +10,15 @@ import torch
 from torch.utils.data import DataLoader
 
 from utils.configs import GlobalConfig
+from utils.data.data_loader import DataLoaderMultiClass
 from utils.sagan.trainer import TrainerSAGAN
 
 
-class DataLoader64():
+class DataLoader64(DataLoaderMultiClass):
     """Data loader for unit tests (data size 64)."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.n_classes = 4
 
     def loader(self) -> DataLoader:
@@ -28,10 +30,11 @@ class DataLoader64():
         )
 
 
-class DataLoader32():
+class DataLoader32(DataLoaderMultiClass):
     """Data loader for unit tests (data size 32)."""
 
     def __init__(self) -> None:
+        super().__init__()
         self.n_classes = 4
 
     def loader(self) -> DataLoader:

@@ -3,7 +3,6 @@ run_name: run_wandb
 config_save_path: res/configs/run_wandb
 output_dir: res
 dataset_path: datasets/gansim_small.npy
-num_workers: 2
 
 training.total_step: 300
 training.sample_step: 100

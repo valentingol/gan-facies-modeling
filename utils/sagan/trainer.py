@@ -6,7 +6,7 @@ import json
 import os
 import os.path as osp
 import time
-from typing import Any, Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Union
 
 try:
     import clearml
@@ -29,6 +29,7 @@ from torch.nn import Module
 from torch.optim import Optimizer
 
 from utils.configs import ConfigType
+from utils.data.data_loader import DataLoaderMultiClass
 from utils.data.process import to_img_grid
 from utils.metrics import compute_indicators, wasserstein_distances
 from utils.sagan.modules import SADiscriminator, SAGenerator
@@ -40,7 +41,7 @@ class TrainerSAGAN():
 
     Parameters
     ----------
-    data_loader : Any
+    data_loader : DataLoaderMultiClass
         Object returning a torch.utils.data.DataLoader when called with
         data_loader.loader() and containing an attribute n_classes.
         The DataLoader should return batches of one-hot-encoded torch
@@ -49,14 +50,15 @@ class TrainerSAGAN():
         Global configuration.
     """
 
-    def __init__(self, data_loader: Any, config: ConfigType) -> None:
+    def __init__(self, data_loader: DataLoaderMultiClass,
+                 config: ConfigType) -> None:
         # Data loader
         self.data_loader = data_loader
         self.n_classes = data_loader.n_classes
 
         # Config
         self.config = config
-        config_bs = config.training.batch_size
+        config_bs = config.data.train_batch_size
         nproc_per_node = config.distributed.nproc_per_node or 1
         nnodes = config.distributed.nnodes or 1
         self.batch_size = config_bs // (nproc_per_node * nnodes)
