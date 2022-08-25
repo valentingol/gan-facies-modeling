@@ -1,0 +1,10 @@
+--- !data
+# Configs that will be passes in DataLoader
+train_batch_size: 64
+test_batch_size: 64
+# NOTE: data_size (32, 64, 128, ...) is on the model sub-config
+num_workers: 0
+shuffle: True
+prefetch_factor: 2
+persistant_workers: False  # True to avoid copying worker at the end of each epoch
+pin_memory: False  # True to pin memory on GPU memory for faster transfer
