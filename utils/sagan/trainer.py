@@ -507,19 +507,31 @@ class TrainerSAGAN():
     def compute_train_indicators(self) -> None:
         """Compute indicators from training set if not already exist."""
         # Compute indicators for dataset if not provided or get them
+        data_size = self.config.model.data_size
         dataset_body, _ = os.path.splitext(self.config.dataset_path)
-        self.indicators_path = dataset_body + '_indicators.json'
+
+        self.indicators_path = dataset_body + f'_{data_size}_indicators.json'
+
         if not osp.exists(self.indicators_path):
             print('Compute indicators from training dataset (used for '
                   'metrics)...')
-            data = np.load(self.config.dataset_path)
-            np.random.shuffle(data)
-            # Reduce the size of the dataset to speed up computation
-            if len(data) > 2000:
-                data = data[:2000]
+            data_loader = self.data_loader.loader()
+            n_classes = self.n_classes
+            data_iter = iter(data_loader)
+            train_data = np.zeros((0, n_classes, data_size, data_size))
+            for data in data_iter:
+                data = data.detach().cpu().numpy()
+                torch.cuda.empty_cache()  # Free GPU memory
+                train_data = np.concatenate([train_data, data], axis=0)
+                if len(train_data) >= 2000:
+                    # Enough data to compute indicators
+                    break
+            # Binarize data (channel first)
+            train_data = np.argmax(train_data, axis=1)
+            train_data = train_data.astype(np.uint8)
             # Compute dataset indicators
             indicators_list = compute_indicators(
-                data, **self.config.metrics.get_dict())
+                train_data, **self.config.metrics.get_dict())
             # Save indicators in the same folder as the dataset
             with open(self.indicators_path, 'w', encoding='utf-8') as file_out:
                 json.dump(indicators_list, file_out, separators=(',', ':'),
@@ -582,12 +594,12 @@ class TrainerSAGAN():
         """Compute metrics from input generator."""
         print('Computing metrics...')
         config = self.config
-        # Generate images (over 500 2D images)
+        # Generate images (over 1000 2D images)
         gen.eval()
-        print(" -> Generating images", end='\r')
+        print(" -> Generating images for metrics calculation:", end='\r')
         data_gen = []
         with torch.no_grad():
-            for k in range(1 + 512 // self.batch_size):
+            for k in range(1 + 1024 // self.batch_size):
                 if config.trunc_ampl > 0:
                     # Truncation trick
                     z_input = torch.fmod(
@@ -603,9 +615,8 @@ class TrainerSAGAN():
                 out = torch.argmax(out, dim=1).detach().cpu().numpy()
                 torch.cuda.empty_cache()  # Free GPU memory
                 data_gen.append(out)
-                print(f" -> Generating images: {(k + 1)*self.batch_size}"
-                      " images",
-                      end='\r')
+                print(" -> Generating images for metrics calculation: "
+                      f"{(k + 1)*self.batch_size} images", end='\r')
         print()
         data_gen_arr = np.vstack(data_gen)
         data_gen_arr = data_gen_arr.astype(np.uint8)
