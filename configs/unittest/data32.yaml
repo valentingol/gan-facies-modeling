@@ -30,3 +30,6 @@ training.total_step: 6
 
 clearml.use_clearml: False
 wandb.use_wandb: False
+
+metrics.connectivity: null
+metrics.unit_component_size: 4

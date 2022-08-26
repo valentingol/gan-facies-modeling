@@ -107,7 +107,8 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
             # Normalize wasserstein distance by the expected value
             mean = np.mean(indicators_1[ind_name] + indicators_2[ind_name])
             metrics[metric_name] = dist / (mean + 1e-5)
-
+    metrics_list = list(metrics.values())
+    metrics['global'] = np.mean(metrics_list) if metrics_list else 0.0
     if save_boxes_path:
         n_classes = len(indicators_list_1)
         indicators_list: List[Dict[str, List[float]]] = [{}] * (2 * n_classes)

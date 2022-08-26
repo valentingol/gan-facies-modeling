@@ -30,7 +30,7 @@ def test_wasserstein_distances(capsys: Any) -> None:
     assert os.path.exists('tests/tmp_boxes.png'), 'Save boxes failed.'
     os.remove('tests/tmp_boxes.png')
     some_expected_keys = {'prop_cls_1', 'proba_cls_1', 'adj_to_2_prop_cls_1',
-                          'num_connected_cls_2', 'box_ratio_cls_2'}
+                          'num_connected_cls_2', 'box_ratio_cls_2', 'global'}
     assert some_expected_keys <= w_dists.keys()
     for values in w_dists.values():
         assert isinstance(values, float)
@@ -43,7 +43,7 @@ def test_wasserstein_distances(capsys: Any) -> None:
     for values in w_dists.values():
         assert isinstance(values, float)
     assert w_dists.keys() == {'ind1_cls_1', 'ind2_cls_1', 'ind1_cls_2',
-                              'ind2_cls_2'}
+                              'ind2_cls_2', 'global'}
 
     # Case wrong inputs
     with pytest.raises(TypeError, match='.*data1.*'):
