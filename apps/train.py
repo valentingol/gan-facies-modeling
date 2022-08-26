@@ -21,7 +21,7 @@ from utils.train.random_utils import set_global_seed
 
 
 def train(config: ConfigType) -> None:
-    """Train and test the SAGAN model."""
+    """Train the GAN model."""
     if not torch.cuda.is_available():
         raise ValueError('CUDA is not available and is required for training.')
 
