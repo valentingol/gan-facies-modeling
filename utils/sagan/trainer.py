@@ -507,31 +507,41 @@ class TrainerSAGAN():
     def compute_train_indicators(self) -> None:
         """Compute indicators from training set if not already exist."""
         # Compute indicators for dataset if not provided or get them
+        data_loader = self.data_loader.loader()
+        data_iter = iter(data_loader)
+        for data in data_iter:
+            default_connectivity = data.ndim - 2
+            train_data = data.detach().cpu().numpy()
+            break
+        torch.cuda.empty_cache()  # Free GPU memory
         data_size = self.config.model.data_size
+        connectivity = (self.config.metrics.connectivity
+                        or default_connectivity)
+        unit_component_size = self.config.metrics.unit_component_size
         dataset_body, _ = os.path.splitext(self.config.dataset_path)
 
-        self.indicators_path = dataset_body + f'_{data_size}_indicators.json'
+        self.indicators_path = (f'{dataset_body}_ds{data_size}_co'
+                                f'{connectivity}_us{unit_component_size}_'
+                                'indicators.json')
 
         if not osp.exists(self.indicators_path):
             print('Compute indicators from training dataset (used for '
                   'metrics)...')
             data_loader = self.data_loader.loader()
-            n_classes = self.n_classes
-            data_iter = iter(data_loader)
-            train_data = np.zeros((0, n_classes, data_size, data_size))
             for data in data_iter:
-                data = data.detach().cpu().numpy()
-                torch.cuda.empty_cache()  # Free GPU memory
-                train_data = np.concatenate([train_data, data], axis=0)
                 if len(train_data) >= 2000:
                     # Enough data to compute indicators
                     break
+                data = data.detach().cpu().numpy()
+                torch.cuda.empty_cache()  # Free GPU memory
+                train_data = np.concatenate([train_data, data], axis=0)
+
             # Binarize data (channel first)
             train_data = np.argmax(train_data, axis=1)
             train_data = train_data.astype(np.uint8)
             # Compute dataset indicators
             indicators_list = compute_indicators(
-                train_data, **self.config.metrics.get_dict())
+                train_data, **self.config.metrics)
             # Save indicators in the same folder as the dataset
             with open(self.indicators_path, 'w', encoding='utf-8') as file_out:
                 json.dump(indicators_list, file_out, separators=(',', ':'),
@@ -673,12 +683,20 @@ class TrainerSAGAN():
             wandb.log(w_dists)
         if config.clearml.use_clearml:
             for ind_name, value in w_dists.items():
-                clearml.Logger.current_logger().report_scalar(
-                    ind_name[:-len('_cls_*')],  # base name of indicator
-                    ind_name[-len('cls_*'):],  # class number
-                    value=value,
-                    iteration=self.step + 1,
-                )
+                if ind_name == 'global':
+                    clearml.Logger.current_logger().report_scalar(
+                        'global',  # base name of indicator
+                        'global',  # class number
+                        value=value,
+                        iteration=self.step + 1,
+                    )
+                else:
+                    clearml.Logger.current_logger().report_scalar(
+                        ind_name[:-len('_cls_*')],  # base name of indicator
+                        ind_name[-len('cls_*'):],  # class number
+                        value=value,
+                        iteration=self.step + 1,
+                    )
 
         # Save metrics locally in a json file
         save_metrics_path = osp.join(self.metrics_save_path,

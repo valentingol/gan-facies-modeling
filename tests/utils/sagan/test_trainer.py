@@ -104,10 +104,10 @@ def test_train() -> None:
 
     if osp.exists('configs/runs/tmp_test'):
         shutil.rmtree('configs/runs/tmp_test')
-    assert osp.exists('tests/datasets/data32_32_indicators.json'), (
+    assert osp.exists('tests/datasets/data32_ds32_co2_us4_indicators.json'), (
         'indicators not saved'
         )
-    assert osp.exists('tests/datasets/data64_64_indicators.json'), (
+    assert osp.exists('tests/datasets/data64_ds64_co1_us6_indicators.json'), (
         'indicators not saved'
         )
     shutil.rmtree('tests/datasets')
