@@ -85,7 +85,7 @@ def test_train() -> None:
         assert osp.exists('res/tmp_test/samples/images_step_2.png')
         if i == 0:
             assert osp.exists('res/tmp_test/metrics/boxes_step_4.png')
-            assert osp.exists('res/tmp_test/metrics/metrics_step_4.json')
+            assert osp.exists('res/tmp_test/metrics/metrics_step_4.csv')
         assert osp.exists('res/tmp_test/attention/gen_attn_step_2/attn_0.npy')
         # Remove tmp folders
         shutil.rmtree('res/tmp_test')
