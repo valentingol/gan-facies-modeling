@@ -1,6 +1,7 @@
 """Metric utilities."""
 
-from utils.metrics.indicators import compute_indicators
-from utils.metrics.metric import wasserstein_distances
+from utils.metrics.metric import (compute_save_indicators, evaluate,
+                                  print_metrics)
 
-__all__ = ['compute_indicators', 'wasserstein_distances']
+__all__ = ['compute_save_indicators', 'evaluate',
+           'print_metrics']

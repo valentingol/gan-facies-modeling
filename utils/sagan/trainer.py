@@ -2,7 +2,6 @@
 
 """Training class for SAGAN."""
 
-import json
 import os
 import os.path as osp
 import time
@@ -31,7 +30,7 @@ from torch.optim import Optimizer
 from utils.configs import ConfigType
 from utils.data.data_loader import DataLoaderMultiClass
 from utils.data.process import to_img_grid
-from utils.metrics import compute_indicators, wasserstein_distances
+from utils.metrics import compute_save_indicators, evaluate, print_metrics
 from utils.sagan.modules import SADiscriminator, SAGenerator
 from utils.train.time_utils import get_delta_eta
 
@@ -507,45 +506,8 @@ class TrainerSAGAN():
     def compute_train_indicators(self) -> None:
         """Compute indicators from training set if not already exist."""
         # Compute indicators for dataset if not provided or get them
-        data_loader = self.data_loader.loader()
-        data_iter = iter(data_loader)
-        for data in data_iter:
-            default_connectivity = data.ndim - 2
-            train_data = data.detach().cpu().numpy()
-            break
-        torch.cuda.empty_cache()  # Free GPU memory
-        data_size = self.config.model.data_size
-        connectivity = (self.config.metrics.connectivity
-                        or default_connectivity)
-        unit_component_size = self.config.metrics.unit_component_size
-        dataset_body, _ = os.path.splitext(self.config.dataset_path)
-
-        self.indicators_path = (f'{dataset_body}_ds{data_size}_co'
-                                f'{connectivity}_us{unit_component_size}_'
-                                'indicators.json')
-
-        if not osp.exists(self.indicators_path):
-            print('Compute indicators from training dataset (used for '
-                  'metrics)...')
-            data_loader = self.data_loader.loader()
-            for data in data_iter:
-                if len(train_data) >= 2000:
-                    # Enough data to compute indicators
-                    break
-                data = data.detach().cpu().numpy()
-                torch.cuda.empty_cache()  # Free GPU memory
-                train_data = np.concatenate([train_data, data], axis=0)
-
-            # Binarize data (channel first)
-            train_data = np.argmax(train_data, axis=1)
-            train_data = train_data.astype(np.uint8)
-            # Compute dataset indicators
-            indicators_list = compute_indicators(
-                train_data, **self.config.metrics)
-            # Save indicators in the same folder as the dataset
-            with open(self.indicators_path, 'w', encoding='utf-8') as file_out:
-                json.dump(indicators_list, file_out, separators=(',', ':'),
-                          sort_keys=False, indent=4)
+        self.indicators_path = compute_save_indicators(
+            self.data_loader, self.config)
 
     def save_sample_and_attention(self, gen: Module) -> None:
         """Save sample images and eventually attention maps."""
@@ -603,48 +565,14 @@ class TrainerSAGAN():
     def compute_metrics(self, gen: Module) -> Dict[str, float]:
         """Compute metrics from input generator."""
         print('Computing metrics...')
-        config = self.config
-        # Generate images (over 1000 2D images)
-        gen.eval()
-        print(" -> Generating images for metrics calculation:", end='\r')
-        data_gen = []
-        with torch.no_grad():
-            for k in range(1 + 1024 // self.batch_size):
-                if config.trunc_ampl > 0:
-                    # Truncation trick
-                    z_input = torch.fmod(
-                        torch.randn(self.batch_size,
-                                    config.model.z_dim,
-                                    device='cuda:0'),
-                        config.trunc_ampl)
-                else:
-                    z_input = torch.randn(self.batch_size,
-                                          config.model.z_dim,
-                                          device='cuda:0')
-                out, _ = gen(z_input)
-                out = torch.argmax(out, dim=1).detach().cpu().numpy()
-                torch.cuda.empty_cache()  # Free GPU memory
-                data_gen.append(out)
-                print(" -> Generating images for metrics calculation: "
-                      f"{(k + 1)*self.batch_size} images", end='\r')
+        w_dists = evaluate(gen=gen,
+                           config=self.config,
+                           training=True,
+                           step=self.step + 1,
+                           indicators_path=self.indicators_path,
+                           save_json=False,
+                           save_csv=True)
         print()
-        data_gen_arr = np.vstack(data_gen)
-        data_gen_arr = data_gen_arr.astype(np.uint8)
-        print(" -> Computing indicators...")
-
-        # Get reference indicators
-        with open(self.indicators_path, 'r', encoding='utf-8') as file_in:
-            indicators_list_ref = json.load(file_in)
-        if config.training.save_boxes:
-            save_boxes_path = osp.join(self.metrics_save_path,
-                                       f'boxes_step_{self.step + 1}.png')
-        else:
-            save_boxes_path = None
-
-        # Compute metrics and save boxes locally if needed
-        w_dists: Dict[str, float] = wasserstein_distances(
-            data_gen_arr, indicators_list_ref, save_boxes_path=save_boxes_path,
-            **config.metrics)[0]
         return w_dists
 
     def log_metrics(self, w_dists: Dict[str, float]) -> None:
@@ -672,13 +600,7 @@ class TrainerSAGAN():
 
         # Log the metrics in the console and wandb or clearml if enabled
         print("Wasserstein distances to **training** dataset indicators:")
-        rprint = Console().print
-        for i, (ind_name, w_dist) in enumerate(w_dists.items()):
-            rprint(f"{ind_name}:", style='#ddf502', end=' ')
-            rprint(f"{w_dist:.3f}", style='bold', end=' ')
-            if i % 6 == 5:
-                print()  # New line to improve readability
-        print()
+        print_metrics(w_dists, step=self.step + 1)
         if config.wandb.use_wandb:
             wandb.log(w_dists)
         if config.clearml.use_clearml:
@@ -697,10 +619,3 @@ class TrainerSAGAN():
                         value=value,
                         iteration=self.step + 1,
                     )
-
-        # Save metrics locally in a json file
-        save_metrics_path = osp.join(self.metrics_save_path,
-                                     f'metrics_step_{self.step + 1}.json')
-        with open(save_metrics_path, 'w', encoding='utf-8') as file_out:
-            json.dump(w_dists, file_out, separators=(',', ':'),
-                      sort_keys=False, indent=4)
