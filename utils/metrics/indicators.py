@@ -174,7 +174,10 @@ def sphericity(properties: Dict[str, np.ndarray]) -> np.ndarray:
     """Compute sphericity."""
     areas, perimeters = properties['areas'], properties['perimeters']
     mask_unit = properties['mask_unit']
-    spher = (np.sum(areas**2 * mask_unit / (perimeters**3 + 1e-3), axis=-1)
+    # Convert to float to avoid overflow in division
+    perimeters = perimeters.astype(np.float32)
+    areas = areas.astype(np.float32)
+    spher = (np.sum(areas**2 / (perimeters**3 + 1e-3), axis=-1)
              / (np.sum(mask_unit, axis=-1) + 1e-3))
     spher *= 36 * np.pi
     return spher
