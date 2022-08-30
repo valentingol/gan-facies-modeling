@@ -18,6 +18,8 @@ distributed_config_path: configs/default/distributed.yaml
 experiment_tracking_config_path: configs/default/experiment_tracking.yaml
 
 # Metrics configs
+overwrite_indicators: False
+
 metrics: !metrics
   connectivity: null
   unit_component_size: 1
