@@ -27,21 +27,23 @@ def plot_boxes(indicators_list: List[Dict[str, List[float]]],
 
     Note
     ----
-    You can use plt.figure before calling this function to create
+        - You can use ``plt.figure`` before calling this function to create \
         a new figure with properties you want.
-    You should run plt.show() to display the plot after calling
+
+        - You should run ``plt.show()`` to display the plot after calling \
         this function.
 
     Example
     -------
-    ```
-    plt.figure(figsize=(15, 20))
-    plot_boxes([indicators_1, indicators_2],
-                indicator_names=['facies1', 'facies2'],
-                indicator_colors=['lightblue', 'lightgreen'])
-    plt.show()
-    ```
-    Will plot the boxes for the two indicators dicts. Each different
+    .. code-block:: python3
+
+        plt.figure(figsize=(15, 20))
+        plot_boxes([indicators_1, indicators_2],
+                    indicator_names=['facies1', 'facies2'],
+                    indicator_colors=['lightblue', 'lightgreen'])
+        plt.show()
+
+    This plots the boxes for the two indicators dicts. Each different
     key in the indicators will correspond to a different subplot.
     The boxes for indicator_1 will be named 'facies1' and colored
     light blue, and the boxes for indicator_2 will be named 'facies2'
