@@ -2,10 +2,7 @@
 
 from typing import Union
 
-import wandb
 from rr.ml.config import Configuration
-
-ConfigType = Union[wandb.Config, Configuration]
 
 
 class GlobalConfig(Configuration):
@@ -22,3 +19,23 @@ class GlobalConfig(Configuration):
             '*_config_path': self.register_as_additional_config_file,
             'config_save_path': self.register_as_experiment_path
         }
+
+
+ConfigType = Union[Configuration, GlobalConfig]
+
+
+def merge_configs(config: ConfigType, new_dict_config: dict) -> ConfigType:
+    """Merge a new dict config into the current one."""
+    config_updated = {**config.get_dict(deep=True),
+                      **new_dict_config}
+    # Avoid re-initializing sub-configs with preprocess routines
+    config_updated = {
+        key: val
+        for key, val in config_updated.items()
+        if not (key.endswith('config_path') or key == 'config_save_path')
+    }
+    # Apply the merge
+    new_config = GlobalConfig.load_config(config_updated,
+                                          do_not_merge_command_line=True,
+                                          overwriting_regime='unsafe')
+    return new_config
