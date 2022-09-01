@@ -14,7 +14,7 @@ except ImportError:
 import torch
 from torch.backends import cudnn
 
-from utils.configs import ConfigType, GlobalConfig
+from utils.configs import ConfigType, GlobalConfig, merge_configs
 from utils.data.data_loader import DataLoader2DFacies
 from utils.sagan.trainer import TrainerSAGAN
 from utils.train.random_utils import set_global_seed
@@ -64,24 +64,11 @@ def train_wandb() -> None:
         train(global_config)
     else:
         # Update config with the sweep
-
-        # Force sweep changes to be at the end of the updated config
-        # (under format 'sub.config.key': value)
-        config_updated = {**global_config.get_dict(), **dict(wandb.config)}
-        # Avoid re-initializing sub-configs with preprocess routines
-        config_updated = {
-            key: val
-            for key, val in config_updated.items()
-            if not (key.endswith('config_path') or key == 'config_save_path')
-        }
-        # Apply the merge
-        config = GlobalConfig.load_config(config_updated,
-                                          do_not_merge_command_line=True,
-                                          overwriting_regime='unsafe')
+        config = merge_configs(global_config, dict(wandb.config))
         train(config)
 
 
-def train_clearml() -> None:
+def train_clearml(global_config: ConfigType) -> None:
     """Run the train using ClearML."""
     if global_config.clearml.continue_last_task in {None, False}:
         continue_last_task = False
@@ -96,8 +83,12 @@ def train_clearml() -> None:
         continue_last_task=continue_last_task,
         reuse_last_task_id=reuse_last_task_id,
     )
-    task.connect(global_config.get_dict())
+    # Connect config to task and eventually modifying from ClearML UI
+    config_updated = task.connect(global_config.get_dict(deep=True))
+    config_save_path = global_config.config_save_path
+    global_config = merge_configs(global_config, config_updated)
 
+    global_config.save(osp.join(config_save_path, 'config'))
     train(global_config)
 
 
@@ -109,6 +100,7 @@ def main() -> None:
                 'Cannot use both wandb and clearml, please set '
                 'config.wandb.use_wandb or config.clearml.use_clearml '
                 'to False.')
+        global_config.save(osp.join(global_config.config_save_path, 'config'))
         if global_config.wandb.sweep is not None:  # WandB with sweep
             sweep_id = wandb.sweep(sweep=global_config.wandb.sweep,
                                    entity=global_config.wandb.entity,
@@ -118,8 +110,9 @@ def main() -> None:
         else:  # WandB without sweep
             train_wandb()
     elif global_config.clearml.use_clearml:  # ClearML
-        train_clearml()
+        train_clearml(global_config)
     else:  # Not remote experiment tracking
+        global_config.save(osp.join(global_config.config_save_path, 'config'))
         train(global_config)
 
 
