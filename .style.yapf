@@ -2,8 +2,6 @@
 
 based_on_style = pep8
 
-
-align_closing_bracket_with_visual_indent=True
 allow_multiline_dictionary_keys=True
 allow_multiline_lambdas=True
 arithmetic_precedence_indication=True
@@ -14,4 +12,5 @@ split_before_arithmetic_operator=True
 split_before_dot=True
 split_before_named_assigns=False
 split_complex_comprehension=True
+split_penalty_after_opening_bracket=3000
 split_penalty_excess_character=100000
