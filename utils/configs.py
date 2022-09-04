@@ -2,7 +2,7 @@
 
 from typing import Union
 
-from rr.ml.config import Configuration
+from yaecs import Configuration
 
 
 class GlobalConfig(Configuration):
@@ -26,16 +26,10 @@ ConfigType = Union[Configuration, GlobalConfig]
 
 def merge_configs(config: ConfigType, new_dict_config: dict) -> ConfigType:
     """Merge a new dict config into the current one."""
-    config_updated = {**config.get_dict(deep=True),
-                      **new_dict_config}
-    # Avoid re-initializing sub-configs with preprocess routines
-    config_updated = {
-        key: val
-        for key, val in config_updated.items()
-        if not (key.endswith('config_path') or key == 'config_save_path')
-    }
+    config_updated = {**config.get_dict(deep=True), **new_dict_config}
     # Apply the merge
     new_config = GlobalConfig.load_config(config_updated,
                                           do_not_merge_command_line=True,
                                           overwriting_regime='unsafe')
+    print(new_config.get_dict())
     return new_config
