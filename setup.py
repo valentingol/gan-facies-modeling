@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 # Installation
 config = {
     'name': 'sagan-facies-modeling',
-    'version': '1.1.0',
+    'version': '1.1.1',
     'description': 'Facies modeling with SAGAN.',
     'author': 'Valentin Goldite',
     'author_email': 'valentin.goldite@gmail.com',
