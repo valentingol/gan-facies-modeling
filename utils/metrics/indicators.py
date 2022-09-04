@@ -64,8 +64,7 @@ def compute_indicators(data: np.ndarray, connectivity: Optional[int] = None,
 
     n_classes = np.max(data) + 1
     properties_list, neighbors = get_components_properties(
-        data,
-        connectivity=connectivity,
+        data, connectivity=connectivity,
         unit_component_size=unit_component_size)
     indicators_list = []
     for properties in properties_list:
@@ -83,23 +82,22 @@ def class_prop(properties: Dict[str, np.ndarray]) -> np.ndarray:
     return prop
 
 
-def class_adj_prop(properties: Dict[str, np.ndarray],
-                   neighbors: np.ndarray,
+def class_adj_prop(properties: Dict[str, np.ndarray], neighbors: np.ndarray,
                    adj_class_id: int) -> np.ndarray:
     """Compute class adjacency proportion."""
     class_id, mask = properties['class'], properties['mask']
-    exteriors = ~ (neighbors == class_id).all(axis=-1) * mask
+    exteriors = ~(neighbors == class_id).all(axis=-1) * mask
     neighbors = (neighbors == adj_class_id).any(axis=-1) * mask
     axis = tuple(range(1, mask.ndim))
-    adj_prop = (np.sum(neighbors, axis=axis)
-                / (np.sum(exteriors, axis=axis) + 1e-3))
+    adj_prop = (np.sum(neighbors, axis=axis) /
+                (np.sum(exteriors, axis=axis) + 1e-3))
     return adj_prop
 
 
 def connectivity_proba(properties: Dict[str, np.ndarray]) -> np.ndarray:
     """Compute connection probability."""
     mask, areas = properties['mask'], properties['areas']
-    numerator = np.sum(areas ** 2, axis=-1)
+    numerator = np.sum(areas**2, axis=-1)
     axis = tuple(range(1, mask.ndim))
     proba = numerator / (np.sum(mask, axis=axis)**2 + 1e-3)
     return proba
@@ -119,7 +117,7 @@ def unit_connected_prop(properties: Dict[str, np.ndarray]) -> np.ndarray:
     components, n_units = properties['components'], properties['n_units']
     axis = tuple(range(1, components.ndim))
     n_components = np.max(components, axis=axis)
-    unit_prop = n_units / (n_components + 1e-3)
+    unit_prop = n_units / (n_components+1e-3)
     return unit_prop
 
 
@@ -132,32 +130,31 @@ def traversing_prop(properties: Dict[str, np.ndarray]) -> np.ndarray:
     # For each object, check if it is adjacent to opposite side in
     # axis x or y. Then, sum to get the number of objects satisfying
     # this condition.
-    traversing = np.sum(
-        [np.logical_or(
+    traversing = np.sum([
+        np.logical_or(
             np.logical_and(np.any(components[..., 0, :] == i, axis=axis_any),
                            np.any(components[..., -1, :] == i, axis=axis_any)),
             np.logical_and(np.any(components[..., :, 0] == i, axis=axis_any),
-                           np.any(components[..., :, -1] == i, axis=axis_any))
-            )
-         for i in range(1, components.max() + 1)],
-        axis=0)
-    travers_prop = traversing / (n_components - n_units + 1e-3)
+                           np.any(components[..., :, -1] == i, axis=axis_any)))
+        for i in range(1, components.max() + 1)
+    ], axis=0)
+    travers_prop = traversing / (n_components-n_units+1e-3)
     return travers_prop
 
 
 def number_connected(properties: Dict[str, np.ndarray]) -> np.ndarray:
     """Compute number of connected component cells."""
     areas, mask_unit = properties['areas'], properties['mask_unit']
-    num_connected = (np.sum(areas * mask_unit, axis=-1)
-                     / (np.sum(mask_unit, axis=-1) + 1e-3))
+    num_connected = (np.sum(areas * mask_unit, axis=-1) /
+                     (np.sum(mask_unit, axis=-1) + 1e-3))
     return num_connected
 
 
 def box_ratio(properties: Dict[str, np.ndarray]) -> np.ndarray:
     """Compute box ratio."""
     extents, mask_unit = properties['extents'], properties['mask_unit']
-    b_ratio = (np.sum(extents * mask_unit, axis=-1)
-               / (np.sum(mask_unit, axis=-1) + 1e-3))
+    b_ratio = (np.sum(extents * mask_unit, axis=-1) /
+               (np.sum(mask_unit, axis=-1) + 1e-3))
     return b_ratio
 
 
@@ -165,8 +162,8 @@ def face_cell_ratio(properties: Dict[str, np.ndarray]) -> np.ndarray:
     """Compute faces/cells ratio."""
     areas, perimeters = properties['areas'], properties['perimeters']
     mask_unit = properties['mask_unit']
-    cc_ratio = (np.sum(perimeters * mask_unit / (areas + 1e-3), axis=-1)
-                / (np.sum(mask_unit, axis=-1) + 1e-3))
+    cc_ratio = (np.sum(perimeters * mask_unit / (areas+1e-3), axis=-1) /
+                (np.sum(mask_unit, axis=-1) + 1e-3))
     return cc_ratio
 
 
@@ -177,15 +174,15 @@ def sphericity(properties: Dict[str, np.ndarray]) -> np.ndarray:
     # Convert to float to avoid overflow in division
     perimeters = perimeters.astype(np.float32)
     areas = areas.astype(np.float32)
-    spher = (np.sum(areas**2 / (perimeters**3 + 1e-3), axis=-1)
-             / (np.sum(mask_unit, axis=-1) + 1e-3))
+    spher = (np.sum(areas**2 / (perimeters**3 + 1e-3), axis=-1) /
+             (np.sum(mask_unit, axis=-1) + 1e-3))
     spher *= 36 * np.pi
     return spher
 
 
 def compute_indicators_from_props(properties: Dict[str, np.ndarray],
-                                  neighbors: np.ndarray, n_classes: int
-                                  ) -> Dict[str, List[float]]:
+                                  neighbors: np.ndarray,
+                                  n_classes: int) -> Dict[str, List[float]]:
     """Compute all the indicators from properties and neighbors."""
     # Basic indicators
     indicators = {

@@ -50,10 +50,8 @@ def test_dataloader_2d_facies(dataset_path: str,
     """Test DataLoader2DFacies."""
     create_test_dataset(dataset_path)
     # Case training = True
-    dataloader = DataLoader2DFacies(dataset_path=dataset_path,
-                                    data_size=10,
-                                    training=True,
-                                    data_config=data_config,
+    dataloader = DataLoader2DFacies(dataset_path=dataset_path, data_size=10,
+                                    training=True, data_config=data_config,
                                     augmentation_fn=lambda x: 2 * x).loader()
 
     for X in dataloader:
@@ -68,10 +66,8 @@ def test_dataloader_2d_facies(dataset_path: str,
 
     # Case training = False
 
-    dataloader = DataLoader2DFacies(dataset_path=dataset_path,
-                                    data_size=10,
-                                    training=False,
-                                    data_config=data_config,
+    dataloader = DataLoader2DFacies(dataset_path=dataset_path, data_size=10,
+                                    training=False, data_config=data_config,
                                     augmentation_fn=lambda x: 2 * x).loader()
 
     for X in dataloader:

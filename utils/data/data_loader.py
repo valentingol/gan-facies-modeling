@@ -65,9 +65,7 @@ class DataLoaderMultiClass(ABC):
 class DataLoader2DFacies(DataLoaderMultiClass):
     """Data loading class for facies 2D matrices."""
 
-    def __init__(self, dataset_path: str,
-                 data_size: int,
-                 training: bool,
+    def __init__(self, dataset_path: str, data_size: int, training: bool,
                  data_config: Configuration,
                  augmentation_fn: Optional[Callable] = None) -> None:
         super().__init__()

@@ -7,6 +7,7 @@ from typing import Tuple
 def get_delta_eta(start_time: float, start_step: int, step: int,
                   total_step: int) -> Tuple[str, str]:
     """Return the delta and eta time under string format."""
+
     def time_to_str(time: float) -> str:
         """Convert time in seconds to string format."""
         return (f'{time // 3600:02d}h'

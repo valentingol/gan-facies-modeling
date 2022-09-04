@@ -101,29 +101,28 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
               'will be copy from the last one.')
         len_1, len_2 = len(indicators_list_1), len(indicators_list_2)
         if len_1 > len_2:
-            indicators_list_2 = (indicators_list_2
-                                 + [indicators_list_2[-1]] * (len_1-len_2))
+            indicators_list_2 = (indicators_list_2 + [indicators_list_2[-1]] *
+                                 (len_1-len_2))
         else:
-            indicators_list_1 = (indicators_list_1
-                                 + [indicators_list_1[-1]] * (len_2-len_1))
+            indicators_list_1 = (indicators_list_1 + [indicators_list_1[-1]] *
+                                 (len_2-len_1))
     metrics = {}
-    for i, (indicators_1, indicators_2) in enumerate(zip(indicators_list_1,
-                                                         indicators_list_2)):
+    for i, (indicators_1, indicators_2
+            ) in enumerate(zip(indicators_list_1, indicators_list_2)):
         for ind_name in indicators_1:
             metric_name = ind_name + f'_cls_{i + 1}'
-            dist = w_dist(indicators_1[ind_name],
-                          indicators_2[ind_name])
+            dist = w_dist(indicators_1[ind_name], indicators_2[ind_name])
             # Normalize wasserstein distance by the expected value
             mean = np.mean(indicators_1[ind_name] + indicators_2[ind_name])
-            metrics[metric_name] = dist / (mean + 1e-5)
+            metrics[metric_name] = dist / (mean+1e-5)
     metrics_list = list(metrics.values())
     metrics['global'] = np.mean(metrics_list) if metrics_list else 0.0
     if save_boxes_path:
         n_classes = len(indicators_list_1)
-        indicators_list: List[Dict[str, List[float]]] = [{}] * (2 * n_classes)
+        indicators_list: List[Dict[str, List[float]]] = [{}] * (2*n_classes)
         indicators_list[::2] = indicators_list_1
         indicators_list[1::2] = indicators_list_2
-        indicator_names = [f'class_{i // 2 + 1}' for i in range(2*n_classes)]
+        indicator_names = [f'class_{i // 2 + 1}' for i in range(2 * n_classes)]
         indicator_colors = ['lightblue', 'lightgreen'] * n_classes
         plt.figure(figsize=(30, 30))
         plot_boxes(indicators_list, indicator_names=indicator_names,
@@ -160,8 +159,7 @@ def compute_save_indicators(data_loader: DataLoaderMultiClass,
         break
     torch.cuda.empty_cache()  # Free GPU memory
     data_size = config.model.data_size
-    connectivity = (config.metrics.connectivity
-                    or default_connectivity)
+    connectivity = config.metrics.connectivity or default_connectivity
     unit_component_size = config.metrics.unit_component_size
     dataset_body, _ = os.path.splitext(config.dataset_path)
 
@@ -171,8 +169,9 @@ def compute_save_indicators(data_loader: DataLoaderMultiClass,
 
     overwrite = config.overwrite_indicators
     if overwrite or not osp.exists(indicators_path):
-        rprint('Compute indicators from training dataset (used for '
-               'metrics)...', style='bold cyan', highlight=False)
+        rprint(
+            'Compute indicators from training dataset (used for '
+            'metrics)...', style='bold cyan', highlight=False)
         for data in data_iter:
             if len(train_data) >= 2000:
                 # Enough data to compute indicators
@@ -185,17 +184,17 @@ def compute_save_indicators(data_loader: DataLoaderMultiClass,
         train_data = np.argmax(train_data, axis=1)
         train_data = train_data.astype(np.uint8)
         # Compute dataset indicators
-        indicators_list = compute_indicators(
-            train_data, **config.metrics)
+        indicators_list = compute_indicators(train_data, **config.metrics)
         # Save indicators in the same folder as the dataset
         with open(indicators_path, 'w', encoding='utf-8') as file_out:
             json.dump(indicators_list, file_out, separators=(',', ':'),
                       sort_keys=False, indent=4)
     else:
-        rprint('Indicators from training set already found at '
-               f'{indicators_path}, they are re-used to compute metrics. '
-               'To recompute indicators, switch config.overwrite_indicators '
-               'to True.', style='cyan', highlight=False)
+        rprint(
+            'Indicators from training set already found at '
+            f'{indicators_path}, they are re-used to compute metrics. '
+            'To recompute indicators, switch config.overwrite_indicators '
+            'to True.', style='cyan', highlight=False)
     return indicators_path
 
 
@@ -226,8 +225,8 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     """
     gen.eval()
     device = next(gen.parameters()).device
-    batch_size = (config.data.train_batch_size if training
-                  else config.data.test_batch_size)
+    batch_size = (config.data.train_batch_size
+                  if training else config.data.test_batch_size)
     print(" -> Generating images for metrics calculation:", end='\r')
 
     # Generate more than n_images images to compute metrics
@@ -237,20 +236,18 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
             if config.trunc_ampl > 0:
                 # Truncation trick
                 z_input = torch.fmod(
-                    torch.randn(batch_size,
-                                config.model.z_dim,
-                                device=device),
+                    torch.randn(batch_size, config.model.z_dim, device=device),
                     config.trunc_ampl)
             else:
-                z_input = torch.randn(batch_size,
-                                      config.model.z_dim,
+                z_input = torch.randn(batch_size, config.model.z_dim,
                                       device=device)
             out, _ = gen(z_input)
             out = torch.argmax(out, dim=1).detach().cpu().numpy()
             torch.cuda.empty_cache()  # Free GPU memory
             data_gen.append(out)
-            print(" -> Generating images for metrics calculation: "
-                  f"{(k + 1)*batch_size} images", end='\r')
+            print(
+                " -> Generating images for metrics calculation: "
+                f"{(k + 1)*batch_size} images", end='\r')
     print()
     data_gen_arr = np.vstack(data_gen)
     data_gen_arr = data_gen_arr.astype(np.uint8)
@@ -271,8 +268,7 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     if not osp.exists(indicators_path):
         raise FileNotFoundError(
             f"Indicators file {indicators_path} not found. Please start a "
-            "training with the current configuration to create it."
-        )
+            "training with the current configuration to create it.")
 
     metrics_save_dir = osp.join(config.output_dir, config.run_name, 'metrics')
     os.makedirs(metrics_save_dir, exist_ok=True)
@@ -293,9 +289,9 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
                                          f'test_metrics_step_{step}')
 
     # Compute metrics and save boxes locally if needed
-    w_dists = wasserstein_distances(
-        data_gen_arr, indicators_list_ref, save_boxes_path=save_boxes_path,
-        **config.metrics)[0]
+    w_dists = wasserstein_distances(data_gen_arr, indicators_list_ref,
+                                    save_boxes_path=save_boxes_path,
+                                    **config.metrics)[0]
 
     save_metrics(w_dists, metrics_save_path, save_json=save_json,
                  save_csv=save_csv)
@@ -307,8 +303,8 @@ def print_metrics(metrics: Dict[str, float],
     """Print metrics witch colored table."""
     console = Console()
     title = 'Metrics' if step is None else f'Metrics (step {step})'
-    table = Table(title=title, show_header=True,
-                  header_style='yellow', title_style='bold yellow')
+    table = Table(title=title, show_header=True, header_style='yellow',
+                  title_style='bold yellow')
 
     split_metrics = split_metric(metrics)
 
@@ -323,7 +319,7 @@ def print_metrics(metrics: Dict[str, float],
         for ind_name, value in metrics_cls.items():
             if ind_name not in rows:
                 ind_names.append(ind_name)
-                rows[ind_name] = ['-']*(n_classes + 1)
+                rows[ind_name] = ['-'] * (n_classes+1)
             rows[ind_name][i] = f'{value:.4f}'
 
     # Compute mean of classes for each indicator

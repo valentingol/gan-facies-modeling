@@ -105,6 +105,7 @@ def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
     img_grid = np.reshape(image, (side * y_dim, side * x_dim, 3))
     return img_grid
 
+
 # Example using crop, color and grid
 # if __name__ == '__main__':
 #     import PIL.Image

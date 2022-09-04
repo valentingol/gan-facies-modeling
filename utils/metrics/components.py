@@ -51,8 +51,8 @@ def get_components_properties(data: np.ndarray, connectivity: int,
     properties_list = []
     neighbors = get_neighbors(data, connectivity)
     for class_id in range(1, n_classes + 1):
-        components = get_connected_components(
-            data, class_id=class_id, connectivity=connectivity)
+        components = get_connected_components(data, class_id=class_id,
+                                              connectivity=connectivity)
         areas, extents, perimeters = get_props(components, neighbors, class_id)
         n_units, mask_unit = get_units_props(
             areas, unit_component_size=unit_component_size)
@@ -92,19 +92,17 @@ def get_connected_components(data: np.ndarray, class_id: int,
     components : np.ndarray, dtype=np.int32
         Connected components labels of the same shape as data.
     """
-    components = np.concatenate(
-        [label(data[i] == class_id, background=0,
-               connectivity=connectivity)[None, ...]
-         for i in range(data.shape[0])],
-        axis=0)
+    components = np.concatenate([
+        label(data[i] == class_id, background=0,
+              connectivity=connectivity)[None, ...]
+        for i in range(data.shape[0])
+    ], axis=0)
     components = components.astype(np.int32)
     return components
 
 
-def get_props(components: np.ndarray,
-              neighbors: np.ndarray,
-              class_id: int
-              ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def get_props(components: np.ndarray, neighbors: np.ndarray,
+              class_id: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Get area/volume, perimeter/surface area and extents of components.
 
     Parameters
@@ -129,8 +127,7 @@ def get_props(components: np.ndarray,
         Perimeters (2D) or surface areas (3D) of each component of shape
         (n_images, max_n_components).
     """
-    areas = np.zeros((components.shape[0], np.max(components)),
-                     dtype=np.int32)
+    areas = np.zeros((components.shape[0], np.max(components)), dtype=np.int32)
     extents = np.zeros((components.shape[0], np.max(components)),
                        dtype=np.float32)
 
@@ -151,9 +148,9 @@ def get_props(components: np.ndarray,
 def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
                   class_id: int) -> np.ndarray:
     """Compute perimeter or surface area."""
+
     @jax.jit
-    def perimeter_component_jit(components: jnp.ndarray,
-                                i: jnp.ndarray,
+    def perimeter_component_jit(components: jnp.ndarray, i: jnp.ndarray,
                                 mask_ext: jnp.ndarray) -> jnp.ndarray:
         """Compute perimeter of component i and stock it in perimeters."""
         axis = tuple(range(1, neighbors.ndim))
@@ -166,8 +163,8 @@ def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
 
     # connect_1: neighbors with 1-connectivity
     # 2D: 4-neighbors, 3D: 6-neighbors
-    connect_1 = (neighbors[..., :4] if neighbors.ndim == 4
-                 else neighbors[..., :6])
+    connect_1 = (neighbors[..., :4]
+                 if neighbors.ndim == 4 else neighbors[..., :6])
     # Get all neighbors different from class_id and border
     # (255 by convention, see 'get_neighbors_2d/_3d')
     mask_ext = np.where((connect_1 != class_id) & (connect_1 != 255), 1, 0)
@@ -206,8 +203,7 @@ def get_units_props(areas: np.ndarray, unit_component_size: int = 1
     mask_unit : np.ndarray
         Binary mask with 0 for unit or empty components.
     """
-    n_units = np.sum((0 < areas) & (areas <= unit_component_size),
-                     axis=-1)
+    n_units = np.sum((0 < areas) & (areas <= unit_component_size), axis=-1)
     mask_unit = areas > unit_component_size
     return n_units, mask_unit
 

@@ -44,9 +44,9 @@ def test(config: ConfigType) -> None:
     else:
         raise ValueError(f'Unknown architecture: {architecture}.')
     if config.trunc_ampl > 0:
-        z_input = torch.fmod(torch.randn(batch_size, config.model.z_dim,
-                                         device=device),
-                             config.trunc_ampl)
+        z_input = torch.fmod(
+            torch.randn(batch_size, config.model.z_dim, device=device),
+            config.trunc_ampl)
     else:
         z_input = torch.randn(batch_size, config.model.z_dim, device=device)
     generator.load_state_dict(torch.load(model_path))
@@ -66,8 +66,7 @@ def test(config: ConfigType) -> None:
     if config.save_attn:
         # Save attention
         attn_out_path = osp.join(config.output_dir, config.run_name,
-                                 'attention',
-                                 'test_gen_attn_step')
+                                 'attention', 'test_gen_attn_step')
         os.makedirs(attn_out_path, exist_ok=True)
         attn_list = [attn.detach().cpu().numpy() for attn in attn_list]
         for i, attn in enumerate(attn_list):

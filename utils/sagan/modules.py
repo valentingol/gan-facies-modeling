@@ -1,5 +1,4 @@
 # Code adapted from https://github.com/heykeetae/Self-Attention-GAN
-
 """Modules for SAGAN model."""
 
 from typing import List, Optional, Tuple
@@ -111,8 +110,9 @@ class SADiscriminator(nn.Module):
         self.num_blocks = num_blocks
         # make_attention[i] is True if adding self-attention
         # to {i+1}-th block output
-        make_attention = [i + 1 in model_config.attn_layer_num
-                          for i in range(num_blocks)]
+        make_attention = [
+            i + 1 in model_config.attn_layer_num for i in range(num_blocks)
+        ]
         self.make_attention = make_attention
 
         attn_id = 1  # Attention layers id
@@ -124,8 +124,7 @@ class SADiscriminator(nn.Module):
                                               padding=1)
                 current_dim = model_config.d_conv_dim
             else:
-                block = self._make_disc_block(current_dim,
-                                              current_dim * 2,
+                block = self._make_disc_block(current_dim, current_dim * 2,
                                               kernel_size=4, stride=2,
                                               padding=1)
                 current_dim = current_dim * 2
@@ -217,8 +216,9 @@ class SAGenerator(nn.Module):
         self.num_blocks = num_blocks
         # make_attention[i] is True if adding self-attention
         # to {i+1}-th block output
-        make_attention = [i + 1 in model_config.attn_layer_num
-                          for i in range(num_blocks)]
+        make_attention = [
+            i + 1 in model_config.attn_layer_num for i in range(num_blocks)
+        ]
         self.make_attention = make_attention
 
         repeat_num = int(np.log2(self.data_size)) - 3
@@ -233,8 +233,7 @@ class SAGenerator(nn.Module):
                                              padding=0)
                 current_dim = model_config.g_conv_dim * mult
             else:
-                block = self._make_gen_block(current_dim,
-                                             current_dim // 2,
+                block = self._make_gen_block(current_dim, current_dim // 2,
                                              kernel_size=4, stride=2,
                                              padding=1)
                 current_dim = current_dim // 2
@@ -312,9 +311,8 @@ class SAGenerator(nn.Module):
         x = nn.Softmax(dim=1)(x)
         return x, att_list
 
-    def generate(self, z_input: torch.Tensor,
-                 with_attn: bool = False) -> Tuple[np.ndarray,
-                                                   List[torch.Tensor]]:
+    def generate(self, z_input: torch.Tensor, with_attn: bool = False
+                 ) -> Tuple[np.ndarray, List[torch.Tensor]]:
         """Return generated images and eventually attention list."""
         out, attn_list = self.forward(z_input)
         # Quantize + color generated data

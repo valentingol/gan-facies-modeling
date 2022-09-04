@@ -76,13 +76,12 @@ def train_clearml(global_config: ConfigType) -> None:
     else:
         continue_last_task = global_config.clearml.continue_last_task
         reuse_last_task_id = True
-    task = clearml.Task.init(
-        project_name=global_config.clearml.project_name,
-        task_name=global_config.clearml.task_name,
-        tags=global_config.clearml.tags,
-        continue_last_task=continue_last_task,
-        reuse_last_task_id=reuse_last_task_id,
-    )
+    task = clearml.Task.init(project_name=global_config.clearml.project_name,
+                             task_name=global_config.clearml.task_name,
+                             tags=global_config.clearml.tags,
+                             continue_last_task=continue_last_task,
+                             reuse_last_task_id=reuse_last_task_id,
+                             )
     # Connect config to task and eventually modifying from ClearML UI
     config_updated = task.connect(global_config.get_dict(deep=True))
     config_save_path = global_config.config_save_path

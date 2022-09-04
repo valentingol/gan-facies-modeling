@@ -13,4 +13,5 @@ split_before_dot=True
 split_before_named_assigns=False
 split_complex_comprehension=True
 split_penalty_after_opening_bracket=3000
+split_penalty_comprehension=0
 split_penalty_excess_character=100000

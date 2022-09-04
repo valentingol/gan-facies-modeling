@@ -25,8 +25,10 @@ def test_get_components_properties(data: Tuple[np.ndarray, np.ndarray]
     # Try connectivity 2 and 3
     properties_list_2d, _ = get_components_properties(data_2d, connectivity=2)
     properties_list_3d, _ = get_components_properties(data_3d, connectivity=3)
-    expected_keys = {'class', 'mask', 'components', 'areas', 'extents',
-                     'perimeters', 'n_units', 'mask_unit'}
+    expected_keys = {
+        'class', 'mask', 'components', 'areas', 'extents', 'perimeters',
+        'n_units', 'mask_unit'
+    }
     for properties in properties_list_2d:
         assert set(properties.keys()) == expected_keys
     for properties in properties_list_3d:
@@ -34,7 +36,7 @@ def test_get_components_properties(data: Tuple[np.ndarray, np.ndarray]
 
 
 def test_get_neighbors(data: Tuple[np.ndarray, np.ndarray]) -> None:
-    "Test get_neighbors."""
+    """Test get_neighbors."""
     data_2d, data_3d = data
     neighbors_2d_con_1 = get_neighbors(data_2d, connectivity=1)
     neighbors_2d_con_2 = get_neighbors(data_2d, connectivity=2)

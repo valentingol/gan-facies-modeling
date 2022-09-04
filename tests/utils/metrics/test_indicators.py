@@ -27,11 +27,12 @@ def test_compute_indicators(data: Tuple[np.ndarray, np.ndarray]) -> None:
                                            unit_component_size=4)
     indicators_list_3 = compute_indicators(data_3d, connectivity=3,
                                            unit_component_size=2)
-    expected_keys = {'prop', 'proba', 'density', 'unit_prop',
-                     'traversing_prop', 'num_connected', 'box_ratio',
-                     'face_cell_ratio', 'sphericity', 'adj_to_0_prop'}
-    for i, indicators_list in enumerate([indicators_list_1,
-                                         indicators_list_2,
+    expected_keys = {
+        'prop', 'proba', 'density', 'unit_prop', 'traversing_prop',
+        'num_connected', 'box_ratio', 'face_cell_ratio', 'sphericity',
+        'adj_to_0_prop'
+    }
+    for i, indicators_list in enumerate([indicators_list_1, indicators_list_2,
                                          indicators_list_3]):
         for indicators in indicators_list:
             assert indicators.keys() >= expected_keys, (
