@@ -23,9 +23,10 @@ def save_metrics(metrics: Dict[str, float], metrics_save_path: str,
         split_metrics = split_metric(metrics)
         header = [f'Class {i}' for i in range(1, n_classes + 1)]
         header += ['Mean']
-        pd.DataFrame(split_metrics).T.to_csv(
-            save_metrics_path_csv, index=True, header=header,
-            float_format='%.4f')
+        pd.DataFrame(split_metrics).T.to_csv(save_metrics_path_csv,
+                                             index=True,
+                                             header=header,
+                                             float_format='%.4f')
 
 
 def split_metric(metrics: Dict[str, float]) -> List[Dict[str, float]]:

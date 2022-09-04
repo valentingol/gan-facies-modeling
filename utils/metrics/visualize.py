@@ -50,8 +50,10 @@ def plot_boxes(indicators_list: List[Dict[str, List[float]]],
     and colored light green.
     """
     # Get all indicators names (preserving order)
-    ind_names = [ind_name for indicators in indicators_list
-                 for ind_name in indicators.keys()]
+    ind_names = [
+        ind_name for indicators in indicators_list
+        for ind_name in indicators.keys()
+    ]
     ind_names = list(OrderedDict.fromkeys(ind_names))
 
     for i, ind_name in enumerate(ind_names):

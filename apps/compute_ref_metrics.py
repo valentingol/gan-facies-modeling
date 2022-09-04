@@ -10,8 +10,8 @@ if __name__ == '__main__':
     global_config = GlobalConfig.build_from_argv(
         fallback='configs/exp/base.yaml')
     data = np.load(global_config.dataset_path)
-    data1 = data[:len(data) // 2][: 5000]
-    data2 = data[len(data) // 2:][: 5000]
+    data1 = data[:len(data) // 2][:5000]
+    data2 = data[len(data) // 2:][:5000]
     unit_component_size = global_config.metrics.unit_component_size
     connectivity = global_config.metrics.connectivity
     metrics = wasserstein_distances(data1, data2,

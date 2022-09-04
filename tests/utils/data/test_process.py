@@ -10,9 +10,7 @@ from utils.data.process import (color_data_np, random_crop_np, resize_np,
 @pytest.fixture
 def data_one_hot() -> np.ndarray:
     """Return one hot data."""
-    struct = np.array([[0, 0, 1, 0, 0],
-                       [0, 1, 0, 0, 0],
-                       [0, 0, 1, 0, 0],
+    struct = np.array([[0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [0, 0, 1, 0, 0],
                        [0, 0, 0, 1, 0]])
     struct = np.expand_dims(struct, -1)
     data = np.zeros((4, 5, 2))
@@ -24,9 +22,7 @@ def data_one_hot() -> np.ndarray:
 @pytest.fixture
 def data_int() -> np.ndarray:
     """Return data of type int."""
-    data = np.array([[0, 0, 1, 0, 0],
-                     [0, 1, 0, 0, 0],
-                     [0, 0, 2, 0, 0],
+    data = np.array([[0, 0, 1, 0, 0], [0, 1, 0, 0, 0], [0, 0, 2, 0, 0],
                      [0, 0, 0, 3, 0]])
     return data
 

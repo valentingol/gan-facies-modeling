@@ -23,11 +23,11 @@ class DataLoader64(DataLoaderMultiClass):
 
     def loader(self) -> DataLoader:
         """Return pytorch data loader."""
-        return torch.utils.data.DataLoader(
-            dataset=torch.randn(10, 4, 64, 64), batch_size=2,
-            shuffle=True,
-            num_workers=0,
-        )
+        return torch.utils.data.DataLoader(dataset=torch.randn(10, 4, 64, 64),
+                                           batch_size=2,
+                                           shuffle=True,
+                                           num_workers=0,
+                                           )
 
 
 class DataLoader32(DataLoaderMultiClass):
@@ -39,11 +39,11 @@ class DataLoader32(DataLoaderMultiClass):
 
     def loader(self) -> DataLoader:
         """Return pytorch data loader."""
-        return torch.utils.data.DataLoader(
-            dataset=torch.randn(10, 4, 32, 32), batch_size=2,
-            shuffle=True,
-            num_workers=0,
-        )
+        return torch.utils.data.DataLoader(dataset=torch.randn(10, 4, 32, 32),
+                                           batch_size=2,
+                                           shuffle=True,
+                                           num_workers=0,
+                                           )
 
 
 def build_trainers() -> Tuple[TrainerSAGAN, TrainerSAGAN]:
@@ -91,23 +91,29 @@ def test_train() -> None:
         shutil.rmtree('res/tmp_test')
 
     # Test get_log_to_dict method
-    logs = trainer.get_log_to_dict({'g_loss': torch.tensor(0.3),
-                                    'd_loss': torch.tensor(-0.2),
-                                    'test': torch.tensor(0.2)},
-                                   avg_gammas=[0.5, 0.6, 0.7])
-    expected_logs = {'g_loss': 0.3, 'd_loss': -0.2, 'test': 0.2,
-                     'sum_losses': 0.1, 'abs_losses': 0.5,
-                     'avg_gamma1': 0.5, 'avg_gamma2': 0.6,
-                     'avg_gamma3': 0.7}
+    logs = trainer.get_log_to_dict(
+        {
+            'g_loss': torch.tensor(0.3),
+            'd_loss': torch.tensor(-0.2),
+            'test': torch.tensor(0.2)
+        }, avg_gammas=[0.5, 0.6, 0.7])
+    expected_logs = {
+        'g_loss': 0.3,
+        'd_loss': -0.2,
+        'test': 0.2,
+        'sum_losses': 0.1,
+        'abs_losses': 0.5,
+        'avg_gamma1': 0.5,
+        'avg_gamma2': 0.6,
+        'avg_gamma3': 0.7
+    }
     for key, val in expected_logs.items():
         assert np.isclose(logs[key], val), f'error for key {key}'
 
     if osp.exists('configs/runs/tmp_test'):
         shutil.rmtree('configs/runs/tmp_test')
     assert osp.exists('tests/datasets/data32_ds32_co2_us4_indicators.json'), (
-        'indicators not saved'
-        )
+        'indicators not saved')
     assert osp.exists('tests/datasets/data64_ds64_co1_us6_indicators.json'), (
-        'indicators not saved'
-        )
+        'indicators not saved')
     shutil.rmtree('tests/datasets')

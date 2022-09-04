@@ -1,5 +1,4 @@
 # Code adapted from https://github.com/heykeetae/Self-Attention-GAN
-
 """Training class for SAGAN."""
 
 import os
@@ -60,7 +59,7 @@ class TrainerSAGAN():
         config_bs = config.data.train_batch_size
         nproc_per_node = config.distributed.nproc_per_node or 1
         nnodes = config.distributed.nnodes or 1
-        self.batch_size = config_bs // (nproc_per_node * nnodes)
+        self.batch_size = config_bs // (nproc_per_node*nnodes)
 
         # Attributes that will be overwritten when the train will start:
         self.step = -1
@@ -86,13 +85,11 @@ class TrainerSAGAN():
         # Fixed input for sampling
         if config.trunc_ampl > 0:
             # Truncation trick
-            self.fixed_z = torch.fmod(torch.randn(self.batch_size,
-                                                  config.model.z_dim,
-                                                  device='cuda:0'),
-                                      config.trunc_ampl)
+            self.fixed_z = torch.fmod(
+                torch.randn(self.batch_size, config.model.z_dim,
+                            device='cuda:0'), config.trunc_ampl)
         else:
-            self.fixed_z = torch.randn(self.batch_size,
-                                       config.model.z_dim,
+            self.fixed_z = torch.randn(self.batch_size, config.model.z_dim,
                                        device='cuda:0')
 
         self.indicators_path = ''  # Will be overwritten during training
@@ -268,7 +265,7 @@ class TrainerSAGAN():
                 for (name_param, new_param) in gen.named_parameters():
                     old_param_d = self.gen_ema[name_param].data.to(device)
                     new_param_d = new_param.data.clone()
-                    new_param.data.copy_(ema_decay * old_param_d
+                    new_param.data.copy_(ema_decay*old_param_d
                                          + (1.0-ema_decay) * new_param_d)
         return gen, g_optimizer, losses
 
@@ -335,7 +332,8 @@ class TrainerSAGAN():
                 inputs=interpolated,
                 grad_outputs=torch.ones(out.size()).to(device),
                 retain_graph=True,
-                create_graph=True, only_inputs=True)[0]
+                create_graph=True,
+                only_inputs=True)[0]
 
             with torch.cuda.amp.autocast(
                     enabled=self.config.training.mixed_precision):
@@ -369,7 +367,7 @@ class TrainerSAGAN():
                 for (name_param, new_param) in disc.named_parameters():
                     old_param_d = self.disc_ema[name_param].data.to(device)
                     new_param_d = new_param.data.clone()
-                    new_param.data.copy_(ema_decay * old_param_d
+                    new_param.data.copy_(ema_decay*old_param_d
                                          + (1.0-ema_decay) * new_param_d)
 
         return disc, d_optimizer, losses
@@ -378,13 +376,14 @@ class TrainerSAGAN():
         """Log the training progress."""
         rprint = Console().print
 
-        def log_row(key: str, value: Union[str, float, int],
-                    style: str, size: int = 6) -> None:
+        def log_row(key: str, value: Union[str, float, int], style: str,
+                    size: int = 6) -> None:
             """Display a row in the console."""
             value = str(value)[:size].ljust(size)
             rprint(f'{key}: ', style=style, end='')
             rprint(f'{value}', style='bold ' + style, end='', highlight=False)
             print(' | ', end='')
+
         start_time = self.start_time
         start_step = self.start_step
         step = self.step
@@ -415,12 +414,10 @@ class TrainerSAGAN():
         print()
 
         if self.config.wandb.use_wandb:
-            logs = self.get_log_to_dict(metrics=losses,
-                                        avg_gammas=avg_gammas)
+            logs = self.get_log_to_dict(metrics=losses, avg_gammas=avg_gammas)
             wandb.log(logs)
         if self.config.clearml.use_clearml:
-            logs = self.get_log_to_dict(metrics=losses,
-                                        avg_gammas=avg_gammas)
+            logs = self.get_log_to_dict(metrics=losses, avg_gammas=avg_gammas)
             for name, value in logs.items():
                 if name in {'sum_losses', 'abs_losses'}:
                     title = 'Losses properties'
@@ -506,8 +503,8 @@ class TrainerSAGAN():
     def compute_train_indicators(self) -> None:
         """Compute indicators from training set if not already exist."""
         # Compute indicators for dataset if not provided or get them
-        self.indicators_path = compute_save_indicators(
-            self.data_loader, self.config)
+        self.indicators_path = compute_save_indicators(self.data_loader,
+                                                       self.config)
 
     def save_sample_and_attention(self, gen: Module) -> None:
         """Save sample images and eventually attention maps."""
@@ -529,8 +526,7 @@ class TrainerSAGAN():
                 "generated_images",
                 "generated_images",
                 iteration=step + 1,
-                image=img_grid
-            )
+                image=img_grid)
 
         if self.config.save_attn:
             # Save attention
@@ -565,13 +561,10 @@ class TrainerSAGAN():
     def compute_metrics(self, gen: Module) -> Dict[str, float]:
         """Compute metrics from input generator."""
         print('Computing metrics...')
-        w_dists = evaluate(gen=gen,
-                           config=self.config,
-                           training=True,
+        w_dists = evaluate(gen=gen, config=self.config, training=True,
                            step=self.step + 1,
                            indicators_path=self.indicators_path,
-                           save_json=False,
-                           save_csv=True)
+                           save_json=False, save_csv=True)
         print()
         return w_dists
 
@@ -595,8 +588,7 @@ class TrainerSAGAN():
                     'metrics boxes',
                     f'iteration {self.step + 1}',
                     figure=fig,
-                    iteration=self.step + 1
-                )
+                    iteration=self.step + 1)
 
         # Log the metrics in the console and wandb or clearml if enabled
         print("Wasserstein distances to **training** dataset indicators:")
@@ -610,12 +602,10 @@ class TrainerSAGAN():
                         'global',  # base name of indicator
                         'global',  # class number
                         value=value,
-                        iteration=self.step + 1,
-                    )
+                        iteration=self.step + 1)
                 else:
                     clearml.Logger.current_logger().report_scalar(
                         ind_name[:-len('_cls_*')],  # base name of indicator
                         ind_name[-len('cls_*'):],  # class number
                         value=value,
-                        iteration=self.step + 1,
-                    )
+                        iteration=self.step + 1)
