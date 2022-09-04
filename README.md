@@ -101,7 +101,7 @@ will be explained in the next section.
 
 Of course it is always interesting to customize the training with flexibility.
 Thus this repository use the smart configuration manager
-[rr-ml-config-public](https://gitlab.com/reactivereality/public/rr-ml-config-public).
+[YAECS](https://github.com/valentingol/yaecs).
 
 The default sub-configurations (for models, training, ...) are organized in
 different sub-folders in `configs/default`. You can launch an experiment by
