@@ -81,7 +81,7 @@ More synthesized data are available
 
 Of course, you can put your own dataset in the `datasets` folder. The dataset
 should be a Numpy (`.npy`) file containing a 3D ndarray with format
-(z~depth~n_samples, y, x) of type `uint8` with a different number for each
+(z/depth/n_samples, y, x) of type `uint8` with a different number for each
 facies, starting from 0. The number of facies is then `dataset.max() + 1`.
 
 Now you can simply run a train on the default dataset with unconditional SAGAN
