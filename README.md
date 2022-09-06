@@ -2,8 +2,8 @@
 
 Underground facies (= kind of rocks) modeling with GANs.
 
-![PythonVersion](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10-informational)
-![PytorchVersion](https://img.shields.io/badge/Pytorch-1.12-blue)
+![PythonVersion](https://img.shields.io/badge/python-3.7%20%7E%203.10-informational)
+![PytorchVersion](https://img.shields.io/badge/Pytorch-1.8%20%7E%201.12-blue)
 [![License](https://img.shields.io/badge/license-MIT-white)](https://stringfixer.com/fr/MIT_license)
 ![WandB](https://img.shields.io/badge/WandB-supported-brightgreen)
 ![ClearML](https://img.shields.io/badge/ClearML-supported-brightgreen)
