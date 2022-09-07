@@ -6,7 +6,6 @@ Guillaume Rongier and al,
 (https://www.sciencedirect.com/science/article/abs/pii/S0309170816302573)
 """
 
-from math import prod
 from typing import Dict, List, Optional
 
 import numpy as np
@@ -78,7 +77,7 @@ def class_prop(properties: Dict[str, np.ndarray]) -> np.ndarray:
     """Compute class proportion."""
     mask = properties['mask']
     axis = tuple(range(1, mask.ndim))
-    prop = np.sum(mask, axis=axis) / (prod(mask.shape[1:]) + 1e-3)
+    prop = np.sum(mask, axis=axis) / (np.prod(mask.shape[1:]) + 1e-3)
     return prop
 
 
@@ -108,7 +107,7 @@ def connected_density(properties: Dict[str, np.ndarray]) -> np.ndarray:
     components = properties['components']
     axis = tuple(range(1, components.ndim))
     n_components = np.max(components, axis=axis)
-    density = n_components / prod(components.shape[1:])
+    density = n_components / np.prod(components.shape[1:])
     return density
 
 
