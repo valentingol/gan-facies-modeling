@@ -8,7 +8,9 @@ overwrite_indicators: True
 
 data.train_batch_size: 2
 data.test_batch_size: 3
+data.n_pixels_cond: 5
 
+model_config_path: configs/default/models/cond_sagan.yaml
 model.attn_layer_num: [1, 2, 3]
 model.data_size: 32
 model.d_conv_dim: 8
@@ -16,11 +18,11 @@ model.g_conv_dim: 8
 model.full_values: True
 model.init_method: orthogonal
 
-training.adv_loss: hinge
+training.adv_loss: wgan-gp
 training.ema_start_step: 0
 training.g_ema_decay: 0.999
 training.d_ema_decay: 0.999
-training.mixed_precision: False
+training.mixed_precision: True
 training.save_boxes: True
 
 training.log_step: 1
