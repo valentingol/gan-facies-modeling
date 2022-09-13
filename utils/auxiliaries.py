@@ -1,7 +1,11 @@
-"""Time utilities."""
+"""Auxiliary functions."""
 
+import random
 import time
 from typing import Tuple
+
+import numpy as np
+import torch
 
 
 def get_delta_eta(start_time: float, start_step: int, step: int,
@@ -19,3 +23,17 @@ def get_delta_eta(start_time: float, start_step: int, step: int,
     eta_t = (total_step-step-1) * delta_t // (step+1-start_step)
     eta_str = time_to_str(eta_t)
     return delta_str, eta_str
+
+
+def set_global_seed(seed: int) -> None:
+    """Set global seed for each source of randomness.
+
+    Note
+    ----
+    This function **NOT ENSURE** perfect reproducibility
+    across different devices but limit the differences in behavior
+    between machines.
+    """
+    torch.manual_seed(seed)  # set for CPU and CUDA
+    np.random.seed(seed)
+    random.seed(seed)
