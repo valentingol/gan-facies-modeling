@@ -7,6 +7,7 @@ save_attn: True
 trunc_ampl: 1.0
 
 data.train_batch_size: 2
+data.test_batch_size: 3
 
 model.attn_layer_num: [4]
 model.data_size: 64
@@ -16,8 +17,9 @@ model.full_values: False
 model.init_method: normal
 
 training.adv_loss: wgan-gp
-training.g_ema_decay: 1  # disable ema
-training.d_ema_decay: 1  # disable ema
+training.ema_start_step: 0
+training.g_ema_decay: 0.999
+training.d_ema_decay: 0.999
 training.mixed_precision: True
 
 training.log_step: 1
