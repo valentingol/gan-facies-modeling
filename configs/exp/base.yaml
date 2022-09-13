@@ -5,6 +5,7 @@ output_dir: res
 dataset_path: datasets/gansim_small.npy
 
 data.num_workers: 2
+model.data_size: 64
 
 training.total_step: 300
 training.sample_step: 100
