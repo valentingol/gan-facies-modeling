@@ -2,6 +2,8 @@
 
 import sys
 
+import pytest_check as check
+
 from utils.configs import GlobalConfig, merge_configs
 
 
@@ -11,9 +13,9 @@ def test_global_config() -> None:
     sys.argv = []  # Reset sys.argv
     config = GlobalConfig.build_from_argv(
         fallback='configs/unittest/data64.yaml')
-    assert config.run_name == 'tmp_test'
-    assert config.model.data_size == 64
-    assert config.training.total_time == -1
+    check.equal(config.run_name, 'tmp_test')
+    check.equal(config.model.data_size, 64)
+    check.equal(config.training.total_time, -1)
     sys.argv = old_argv  # Restore sys.argv
 
 
@@ -23,4 +25,4 @@ def test_merge_configs() -> None:
         fallback='configs/unittest/data64.yaml')
     new_dict_config = {'model.data_size': 128}
     new_config = merge_configs(config, new_dict_config)
-    assert new_config.model.data_size == 128
+    check.equal(new_config.model.data_size, 128)
