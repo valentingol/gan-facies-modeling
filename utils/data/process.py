@@ -1,5 +1,8 @@
 """Pre-process and post-process data utilities."""
 
+import random
+from typing import List, Union
+
 import numpy as np
 from skimage.transform import resize
 
@@ -106,17 +109,55 @@ def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
     return img_grid
 
 
-# Example using crop, color and grid
-# if __name__ == '__main__':
-#     import PIL.Image
-#     data = np.load('datasets/stanfordp1.npy')
-#     # Random crop data
-#     data_crop = []
-#     for i in range(data.shape[0]):
-#         data_crop.append(random_crop_np(data[i], 64))
-#     data_crop = np.array(data_crop)
-#     np.random.shuffle(data_crop)
-#     data = color_data_np(data_crop[:64])
-#     img_grid = to_img_grid(data)
-#     # Save the image
-#     PIL.Image.fromarray(img_grid).save('stanfordp1_real.png')
+def sample_pixels_2d_np(data: np.ndarray,
+                        n_pixels: Union[int, List[int]]) -> np.ndarray:
+    """Sample pixel map similar to GANSim's 'well facies data' (2D case).
+
+    Return a binary map containing n_classes values for each pixel.
+    The first value is 1 if a log is sampled in the pixel,
+    the n_classes-1 last values determine the class of the log.
+    By convention, if the class is 0 (background facies), the last
+    values are all 0. More details in the GANSim paper:
+    https://link.springer.com/article/10.1007/s11004-021-09934-0
+
+    Parameters
+    ----------
+    data : np.ndarray
+        2D data matrix with probabilities of shape (h, w, n_classes)
+        to sample from.
+    n_pixels : int or List[int] (length 2)
+        If int, the number of pixels to sample for each 2D matrix.
+        If tuple, the number of pixels to sample for each 2D matrix
+        will be sampled uniformly between the two values.
+
+    Returns
+    -------
+    pixel_map : np.ndarray, np.float32
+        Pixel map of shape (h, w, n_classes).
+    """
+    # First binarize the data to have binary pixel maps
+    data = np.argmax(data, axis=-1)  # shape (h, w)
+    data = to_one_hot_np(data)  # shape (h, w, n_classes)
+    if isinstance(n_pixels, int):
+        pass
+    elif isinstance(n_pixels, list) and len(n_pixels) == 2:
+        n_pixels = np.random.randint(n_pixels[0], n_pixels[1])
+    else:
+        if isinstance(n_pixels, list):
+            raise ValueError("n_pixels must be int or list of length 2, "
+                             f"found list of lenght {len(n_pixels)}.")
+        raise ValueError("n_pixels must be int or list of 2 ints, "
+                         f"found type {type(n_pixels)}.")
+    height, width = data.shape[0:2]
+    tuples = [(i, j) for i in range(height) for j in range(width)]
+    pixels_idx = random.sample(tuples, n_pixels)  # without replacement
+    pixels_h = [i for i, _ in pixels_idx]
+    pixels_w = [j for _, j in pixels_idx]
+    pixel_mask = np.zeros((height, width), dtype=np.float32)
+    pixel_mask[pixels_h, pixels_w] = 1.0
+    pixel_mask = pixel_mask[..., None]
+    # Remove first class and all information about not sampled pixels
+    classes = data[..., 1:] * pixel_mask  # shape (h, w, n_classes-1)
+    pixel_map = np.concatenate([pixel_mask, classes], axis=-1)
+    pixel_map = pixel_map.astype(np.float32)
+    return pixel_map  # shape (h, w, n_classes)
