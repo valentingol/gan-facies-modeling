@@ -14,10 +14,11 @@ except ImportError:
 import torch
 from torch.backends import cudnn
 
+from utils.auxiliaries import set_global_seed
 from utils.configs import ConfigType, GlobalConfig, merge_configs
-from utils.data.data_loader import DataLoader2DFacies
-from utils.sagan.trainer import TrainerSAGAN
-from utils.train.random_utils import set_global_seed
+from utils.data.data_loader import DatasetCond2D, DistributedDataLoader
+from utils.gan.cond_sagan.trainer import CondTrainerSAGAN
+from utils.gan.uncond_sagan.trainer import UncondTrainerSAGAN
 
 
 def train(config: ConfigType) -> None:
@@ -33,20 +34,27 @@ def train(config: ConfigType) -> None:
     # For faster training (but reduce reproducibility!)
     cudnn.benchmark = True
 
-    # Data loader
-    data_loader = DataLoader2DFacies(dataset_path=config.dataset_path,
-                                     data_size=config.model.data_size,
-                                     training=True,
-                                     data_config=config.data,
-                                     augmentation_fn=None)
-    # Model
+    # Model & data loader
     if architecture == 'sagan':
-        trainer = TrainerSAGAN(data_loader, config)
+        data_loader = DistributedDataLoader(dataset_path=config.dataset_path,
+                                            data_size=config.model.data_size,
+                                            training=True,
+                                            data_config=config.data,
+                                            augmentation_fn=None)
+        # Train
+        UncondTrainerSAGAN(data_loader, config).train()
+    elif architecture == 'cond_sagan':
+        data_loader = DistributedDataLoader(dataset_path=config.dataset_path,
+                                            data_size=config.model.data_size,
+                                            training=True,
+                                            data_config=config.data,
+                                            dataset_class=DatasetCond2D,
+                                            augmentation_fn=None)
+        # Train
+        CondTrainerSAGAN(data_loader, config).train()
     else:
         raise NotImplementedError(f'Architecture "{architecture}" '
                                   'is not implemented!')
-    # Train
-    trainer.train()
 
 
 def train_wandb() -> None:
@@ -118,6 +126,5 @@ def main() -> None:
 if __name__ == '__main__':
     global_config = GlobalConfig.build_from_argv(
         fallback='configs/exp/base.yaml')
-
     global_config.save(osp.join(global_config.config_save_path, 'config'))
     main()
