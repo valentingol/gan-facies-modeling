@@ -8,3 +8,6 @@ shuffle: True
 prefetch_factor: 2
 persistant_workers: False  # True to avoid copying worker at the end of each epoch
 pin_memory: False  # True to pin memory on GPU memory for faster transfer
+# n_pixels_cond: only used for conditional models, number of pixels to sample (int)
+# or range of pixels to sample (List[int] of length 2)
+n_pixels_cond: null
