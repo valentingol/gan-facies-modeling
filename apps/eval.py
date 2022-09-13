@@ -7,12 +7,14 @@ import numpy as np
 import torch
 from PIL import Image
 
+from utils.auxiliaries import set_global_seed
+from utils.conditioning import colorize_pixel_map, generate_pixel_maps
 from utils.configs import ConfigType, GlobalConfig
-from utils.data.data_loader import DataLoader2DFacies
+from utils.data.data_loader import DatasetCond2D, DistributedDataLoader
 from utils.data.process import to_img_grid
+from utils.gan.cond_sagan.modules import CondSAGenerator
+from utils.gan.uncond_sagan.modules import UncondSAGenerator
 from utils.metrics import compute_save_indicators, evaluate, print_metrics
-from utils.sagan.modules import SAGenerator
-from utils.train.random_utils import set_global_seed
 
 
 def test(config: ConfigType) -> None:
@@ -35,32 +37,60 @@ def test(config: ConfigType) -> None:
         model_path = osp.join(model_dir, f'generator_step_{step}.pth')
 
     if architecture == 'sagan':
-        generator = SAGenerator(n_classes=n_classes,
-                                model_config=config.model).to(device)
-        data_loader = DataLoader2DFacies(config.dataset_path,
-                                         data_size=config.model.data_size,
-                                         training=False,
-                                         data_config=config.data)
+        generator = UncondSAGenerator(n_classes=n_classes,
+                                      model_config=config.model).to(device)
+        data_loader = DistributedDataLoader(config.dataset_path,
+                                            data_size=config.model.data_size,
+                                            training=False,
+                                            data_config=config.data)
+    elif architecture == 'cond_sagan':
+        generator = CondSAGenerator(n_classes=n_classes,
+                                    model_config=config.model).to(device)
+        data_loader = DistributedDataLoader(config.dataset_path,
+                                            data_size=config.model.data_size,
+                                            training=False,
+                                            data_config=config.data,
+                                            dataset_class=DatasetCond2D)
     else:
         raise ValueError(f'Unknown architecture: {architecture}.')
+    generator.load_state_dict(torch.load(model_path))
+    generator.eval()
+
     if config.trunc_ampl > 0:
         z_input = torch.fmod(
             torch.randn(batch_size, config.model.z_dim, device=device),
             config.trunc_ampl)
     else:
         z_input = torch.randn(batch_size, config.model.z_dim, device=device)
-    generator.load_state_dict(torch.load(model_path))
-    generator.eval()
-    with torch.no_grad():
-        images, attn_list = generator.generate(z_input, with_attn=True)
+    if 'cond' in architecture:
+        # Create pixel_maps
+        with torch.no_grad():
+            n_pixels = config.data.n_pixels_cond
+            data_size = config.model.data_size
+            pixel_maps = generate_pixel_maps(
+                batch_size=batch_size, n_classes=n_classes,
+                n_pixels=n_pixels, data_size=data_size, device=device)
+            colored_pixel_maps = colorize_pixel_map(pixel_maps)
+            images, attn_list = generator.generate(z_input, pixel_maps,
+                                                   with_attn=True)
+    else:
+        colored_pixel_maps = None
+        with torch.no_grad():
+            images, attn_list = generator.generate(z_input, with_attn=True)
 
     # Save sample images in a grid
     img_out_dir = osp.join(config.output_dir, config.run_name, 'samples')
     img_out_path = osp.join(img_out_dir, f'test_samples_step_{step}.png')
     img_grid = to_img_grid(images)
     pil_images = Image.fromarray(img_grid)
-    pil_images.show(title=f'Test Samples (run {config.run_name}, step {step})')
     os.makedirs(img_out_dir, exist_ok=True)
+    if colored_pixel_maps:
+        colored_pixel_maps.show(title=f'Test Samples (run {config.run_name},'
+                                f' step {step})')
+        cond_save_path = img_out_path.replace('samples', 'cond_pixels')
+        os.makedirs(osp.dirname(cond_save_path), exist_ok=True)
+        colored_pixel_maps.save(cond_save_path)
+    pil_images.show(title=f'Test Samples (run {config.run_name}, step {step})')
     pil_images.save(img_out_path)
 
     if config.save_attn:
