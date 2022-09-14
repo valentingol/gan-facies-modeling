@@ -26,10 +26,11 @@ ConfigType = Union[Configuration, GlobalConfig]
 
 def merge_configs(config: ConfigType, new_dict_config: dict) -> ConfigType:
     """Merge a new dict config into the current one."""
-    config_updated = {**config.get_dict(deep=True), **new_dict_config}
     # Apply the merge
-    new_config = GlobalConfig.load_config(config_updated,
-                                          do_not_merge_command_line=True,
-                                          overwriting_regime='unsafe')
+    new_config = config.copy()
+    new_config.merge(new_dict_config,
+                     do_not_pre_process=True,
+                     verbose=False)
+    print('DEBUG', new_config.data.n_pixels_cond)
     print(new_config.get_dict())
     return new_config
