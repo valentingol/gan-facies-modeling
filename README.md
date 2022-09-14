@@ -146,7 +146,7 @@ python apps/train.py --config configs/exp/my_config.yaml --training.g_lr=0.001 -
 
 *Note: The `=` between the `--param` and the value is important.*
 
-Finally, the configurations will be automatically saved (by default in `configs/runs`)
+Finally, the configurations will be automatically saved (by default in `res/configs`)
 to ensure that you can always recover the exact configuration used for the runs.
 The "hierarchy of merging" is also saved to understand quickly how the configuration
 was merged (with what experiment file(s) and what command line parameters).
