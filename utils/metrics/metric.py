@@ -13,8 +13,9 @@ from rich.table import Table
 from scipy.stats import wasserstein_distance as w_dist
 from torch import nn
 
+from utils.conditioning import generate_pixel_maps
 from utils.configs import ConfigType
-from utils.data.data_loader import DataLoaderMultiClass
+from utils.data.data_loader import DistributedDataLoader
 from utils.metrics.indicators import compute_indicators
 from utils.metrics.tools import save_metrics, split_metric
 from utils.metrics.visualize import plot_boxes
@@ -131,7 +132,7 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
     return metrics, (indicators_list_1, indicators_list_2)
 
 
-def compute_save_indicators(data_loader: DataLoaderMultiClass,
+def compute_save_indicators(data_loader: DistributedDataLoader,
                             config: ConfigType) -> str:
     """Compute and save indicators from data loader and configuration.
 
@@ -141,7 +142,7 @@ def compute_save_indicators(data_loader: DataLoaderMultiClass,
 
     Parameters
     ----------
-    data_loader: DataLoaderMultiClass
+    data_loader: DistributedDataLoader
         Data loader to compute indicators.
     config: ConfigType
         Configuration of the experiment.
@@ -153,7 +154,8 @@ def compute_save_indicators(data_loader: DataLoaderMultiClass,
     """
     rprint = Console().print
     data_iter = iter(data_loader.loader())
-    for data in data_iter:
+    for batch in data_iter:
+        data = batch[0]
         default_connectivity = data.ndim - 2
         train_data = data.detach().cpu().numpy()
         break
@@ -172,10 +174,11 @@ def compute_save_indicators(data_loader: DataLoaderMultiClass,
         rprint(
             'Compute indicators from training dataset (used for '
             'metrics)...', style='bold cyan', highlight=False)
-        for data in data_iter:
+        for batch in data_iter:
             if len(train_data) >= 2000:
                 # Enough data to compute indicators
                 break
+            data = batch[0]
             data = data.detach().cpu().numpy()
             torch.cuda.empty_cache()  # Free GPU memory
             train_data = np.concatenate([train_data, data], axis=0)
@@ -206,6 +209,8 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     Compute Wasserstein distances between generated images indicators
     and reference indicators then eventually save boxes.
 
+    Parameters
+    ----------
     gen : torch.nn.Module
         Generator module to evaluate.
     config : ConfigType
@@ -222,17 +227,25 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
         Minimum number of images to generate to compute metrics.
         The actual number of images generated is the minimum multiple
         of batch_size greater or equal to n_images.
+
+    Returns
+    -------
+    w_dists : Dict[str, float]
+        List of Wasserstein metrics from data1 w.r.t data2. The keys
+        are indicators name (with corresponding class) and the value is
+        the Wasserstein distance between values of the two classes.
+        Lower values means better similarity.
     """
     gen.eval()
     device = next(gen.parameters()).device
     batch_size = (config.data.train_batch_size
                   if training else config.data.test_batch_size)
     print(" -> Generating images for metrics calculation:", end='\r')
-
+    print('\nDEBUG', batch_size)
     # Generate more than n_images images to compute metrics
     data_gen = []
     with torch.no_grad():
-        for k in range(int(np.ceil(n_images // batch_size))):
+        for k in range(max(1, int(np.ceil(n_images // batch_size)))):
             if config.trunc_ampl > 0:
                 # Truncation trick
                 z_input = torch.fmod(
@@ -241,7 +254,17 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
             else:
                 z_input = torch.randn(batch_size, config.model.z_dim,
                                       device=device)
-            out, _ = gen(z_input)
+            if 'cond' in config.model.architecture:
+                n_pixels = config.data.n_pixels_cond
+                data_size = config.model.data_size
+                pixel_maps = generate_pixel_maps(batch_size=batch_size,
+                                                 n_classes=gen.n_classes,
+                                                 n_pixels=n_pixels,
+                                                 data_size=data_size,
+                                                 device=device)
+                out = gen(z_input, pixel_maps=pixel_maps)
+            else:
+                out = gen(z_input)
             out = torch.argmax(out, dim=1).detach().cpu().numpy()
             torch.cuda.empty_cache()  # Free GPU memory
             data_gen.append(out)

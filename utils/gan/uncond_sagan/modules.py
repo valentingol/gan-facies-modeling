@@ -1,7 +1,7 @@
 # Code adapted from https://github.com/heykeetae/Self-Attention-GAN
 """Modules for SAGAN model."""
 
-from typing import List, Optional, Tuple
+from typing import List, Tuple
 
 import numpy as np
 import torch
@@ -10,94 +10,11 @@ from torch import nn
 
 from utils.configs import ConfigType
 from utils.data.process import color_data_np
-from utils.sagan.spectral import SpectralNorm
-
-TensorWithAttn = Tuple[torch.Tensor, List[torch.Tensor]]
-
-
-class SelfAttention(nn.Module):
-    """Self attention Layer.
-
-    Parameters
-    ----------
-    in_dim : int
-        Input feature map dimension (channels).
-    att_dim : int, optional
-        Attention map dimension for each query and key
-        (and value if full_values is False).
-        By default, in_dim // 8.
-    full_values : bool, optional
-        Whether to have value dimension equal to full dimension
-        (in_dim) or reduced to in_dim // 2. In the latter case,
-        the output of the attention is projected to full dimension
-        by an additional 1*1 convolution. By default, True.
-    """
-
-    def __init__(self, in_dim: int, att_dim: Optional[int] = None,
-                 full_values: bool = True) -> None:
-        super().__init__()
-        self.chanel_in = in_dim
-        # By default, query and key dimensions are input dim / 8.
-        att_dim = in_dim // 8 if att_dim is None else att_dim
-
-        self.query_conv = nn.Conv2d(in_channels=in_dim, out_channels=att_dim,
-                                    kernel_size=1)
-        self.key_conv = nn.Conv2d(in_channels=in_dim, out_channels=att_dim,
-                                  kernel_size=1)
-        if full_values:
-            self.value_conv = nn.Conv2d(in_channels=in_dim,
-                                        out_channels=in_dim,
-                                        kernel_size=1)
-            self.out_conv = None
-        else:
-            self.value_conv = nn.Conv2d(in_channels=in_dim,
-                                        out_channels=in_dim // 2,
-                                        kernel_size=1)
-            self.out_conv = nn.Conv2d(in_channels=in_dim // 2,
-                                      out_channels=in_dim,
-                                      kernel_size=1)
-        # gamma: learned scale factor for residual connection
-        self.gamma = nn.Parameter(torch.zeros(1))
-
-    def forward(self, x: torch.Tensor) -> TensorWithAttn:
-        """Forward pass.
-
-        Parameters
-        ----------
-        x : torch.Tensor
-            Input feature maps of shape (B, C, W, H).
-
-        Returns
-        -------
-        out : torch.Tensor
-            Self attention maps + input feature maps.
-        attention : torch.Tensor
-            Attention maps of shape (B, W*H~queries, W*H~keys)
-        """
-        _, _, width, height = x.size()
-        queries = self.query_conv(x)
-        keys = self.key_conv(x)
-        values = self.value_conv(x)
-
-        queries = rearrange(queries, 'B Cqk Wq Hq -> B (Wq Hq) Cqk')
-        keys = rearrange(keys, 'B Cqk Wk Hk -> B Cqk (Wk Hk)')
-        unnorm_attention = torch.bmm(queries, keys)  # (B, WH~query, WH~key)
-        attention = nn.Softmax(dim=-1)(unnorm_attention)
-        attention_t = rearrange(attention, 'B WHq WHk -> B WHk WHq')
-
-        values = rearrange(values, 'B Cv Wv Hv -> B Cv (Wv Hv)')
-        out = torch.bmm(values, attention_t)  # (B, Cv, WH)
-        out = rearrange(out, 'B Cv (W H) -> B Cv W H', W=width, H=height)
-
-        if self.out_conv is not None:
-            out = self.out_conv(out)
-
-        out = self.gamma * out + x
-
-        return out, attention
+from utils.gan.attention import SelfAttention, TensorAndAttn
+from utils.gan.spectral import SpectralNorm
 
 
-class SADiscriminator(nn.Module):
+class UncondSADiscriminator(nn.Module):
     """Self-attention discriminator."""
 
     def __init__(self, n_classes: int, model_config: ConfigType) -> None:
@@ -130,6 +47,7 @@ class SADiscriminator(nn.Module):
                 current_dim = current_dim * 2
             # Add conv block to the model
             setattr(self, f'conv{i}', block)
+
             if make_attention[i - 1]:
                 attn = SelfAttention(current_dim,
                                      full_values=model_config.full_values)
@@ -172,13 +90,16 @@ class SADiscriminator(nn.Module):
         module = nn.Sequential(*layers)
         return module
 
-    def forward(self, x: torch.Tensor) -> TensorWithAttn:
+    def forward(self, x: torch.Tensor,
+                with_attn: bool = False) -> TensorAndAttn:
         """Forward pass.
 
         Parameters
         ----------
         x : torch.Tensor
             Input data of shape (B, num_classes, data_size, data_size).
+        with_attn : bool, optional
+            Whether to return attention maps, by default False
 
         Returns
         -------
@@ -194,16 +115,17 @@ class SADiscriminator(nn.Module):
             if self.make_attention[i - 1]:
                 x, att = getattr(self, f'attn{len(att_list) + 1}')(x)
                 att_list.append(att)
-
-        x = self.conv_last(x).squeeze()
+        # Here x is of shape ([B], d_conv_dim/8, 4, 4)
+        x = self.conv_last(x).squeeze()  # shape ([B], )
 
         if x.ndim == 0:  # when batch size is 1
             x = x.unsqueeze(0)
+        if with_attn:
+            return x, att_list
+        return x
 
-        return x, att_list
 
-
-class SAGenerator(nn.Module):
+class UncondSAGenerator(nn.Module):
     """Self-attention generator."""
 
     def __init__(self, n_classes: int, model_config: ConfigType) -> None:
@@ -221,17 +143,13 @@ class SAGenerator(nn.Module):
         ]
         self.make_attention = make_attention
 
-        repeat_num = int(np.log2(self.data_size)) - 3
-        mult = 2**repeat_num  # 4 if data_size=32, 8 if data_size=64, ...
-
         attn_id = 1  # Attention layers id
         for i in range(1, num_blocks):
             if i == 1:  # First block:
-                block = self._make_gen_block(model_config.z_dim,
-                                             model_config.g_conv_dim * mult,
+                current_dim = model_config.g_conv_dim * self.data_size // 8
+                block = self._make_gen_block(model_config.z_dim, current_dim,
                                              kernel_size=4, stride=1,
                                              padding=0)
-                current_dim = model_config.g_conv_dim * mult
             else:
                 block = self._make_gen_block(current_dim, current_dim // 2,
                                              kernel_size=4, stride=2,
@@ -239,6 +157,7 @@ class SAGenerator(nn.Module):
                 current_dim = current_dim // 2
             # Add conv block to the model
             setattr(self, f'conv{i}', block)
+
             if make_attention[i - 1]:
                 attn = SelfAttention(current_dim,
                                      full_values=model_config.full_values)
@@ -283,13 +202,16 @@ class SAGenerator(nn.Module):
         layers.append(nn.ReLU())
         return nn.Sequential(*layers)
 
-    def forward(self, z: torch.Tensor) -> TensorWithAttn:
+    def forward(self, z: torch.Tensor,
+                with_attn: bool = False) -> TensorAndAttn:
         """Forward pass.
 
         Parameters
         ----------
         z : torch.Tensor
             Random input of shape (B, z_dim)
+        with_attn : bool, optional
+            Whether to return attention maps, by default False
 
         Returns
         -------
@@ -300,21 +222,23 @@ class SAGenerator(nn.Module):
             of shape (B, W*H~queries, W*H~keys).
         """
         att_list: List[torch.Tensor] = []
-        x = rearrange(z, 'B z_dim -> B z_dim 1 1')
+        x = rearrange(z, '(B h w) z_dim -> B z_dim h w', h=1, w=1)
         for i in range(1, self.num_blocks):
             x = getattr(self, f'conv{i}')(x)
             if self.make_attention[i - 1]:
                 x, att = getattr(self, f'attn{len(att_list) + 1}')(x)
                 att_list.append(att)
-
-        x = self.conv_last(x)
+        # Here x is of shape (B, g_conv_dim, H/2, W/2)
+        x = self.conv_last(x)  # shape (B, n_classes, H, W)
         x = nn.Softmax(dim=1)(x)
-        return x, att_list
+        if with_attn:
+            return x, att_list
+        return x
 
     def generate(self, z_input: torch.Tensor, with_attn: bool = False
                  ) -> Tuple[np.ndarray, List[torch.Tensor]]:
         """Return generated images and eventually attention list."""
-        out, attn_list = self.forward(z_input)
+        out, attn_list = self.forward(z_input, with_attn=True)
         # Quantize + color generated data
         out = torch.argmax(out, dim=1)
         out = out.detach().cpu().numpy()

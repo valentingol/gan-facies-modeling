@@ -33,6 +33,12 @@ Author: [github@Valentingol](https://github.com/valentingol)
 [Self-Attention Generative Adversarial Networks](https://arxiv.org/abs/1805.08318)
 and [Modeling of subsurface sedimentary facies using SAGANs](https://www.sciencedirect.com/science/article/abs/pii/S0920410522003540))
 
+- `cond_sagan` - Conditional SAGAN (based on
+papers above
+for SAGAN part and
+[GANSim: Conditional Facies Simulation Using an Improved Progressive Growing of GANS](https://ideas.repec.org/p/osf/eartha/fm24b.html)
+for conditional part)
+
 **3D Models:**
 
 - soon 🚧
@@ -43,11 +49,11 @@ and [Modeling of subsurface sedimentary facies using SAGANs](https://www.science
 
 | <img src="./assets/images/gansim_real.png" width="512">
 |:--:|
-| **Real Images**|
+| **Real Images** (64 $\times$ 64)|
 
 | <img src="./assets/images/gansim_generated.png" width="512">
 |:--:|
-| **Generated Images**|
+| **Generated Images** (128 $\times$ 128)|
 
 ### Stanford-VI dataset (first part)
 
@@ -63,11 +69,13 @@ and [Modeling of subsurface sedimentary facies using SAGANs](https://www.science
 
 ### Installation
 
-Install the module and dependencies in a virtual environment with Python 3.8-3.10:
+Install the module and dependencies in a virtual environment with Python 3.7-3.10:
 
 ```bash
 pip install -e .
 pip install -r requirements.txt
+# for dev only:
+pip install -r requirements-dev.txt
 ```
 
 ### Train on a dataset
@@ -177,7 +185,7 @@ this repository (🚧)
 - [x] Add test for generator in `apps/train.py`
 - [x] Add generated results on GANSim dataset and
 [Stanford VI dataset](https://github.com/SCRFpublic/Stanford-VI-E/tree/master/Facies)
-- [ ] Add conditional SAGAN
+- [x] Add conditional SAGAN
 - [ ] Add 3D models
 - [ ] Explore other architectures
 

@@ -7,6 +7,7 @@ interrupt_threshold: -1.0
 save_boxes: True  # save the metric boxes
 adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
 mixed_precision: False  # if True, use float16 instead of float32 for training
+cond_penalty: 0.25 # only used for conditional model, weight for conditional loss
 
 g_ema_decay: 1.0  # decay of generator's exponential moving average (1.0 = no decay)
 d_ema_decay: 1.0

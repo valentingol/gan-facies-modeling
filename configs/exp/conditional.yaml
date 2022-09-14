@@ -1,6 +1,6 @@
 # Overwrite default configs
-run_name: run1
-config_save_path: res/configs/run1
+run_name: cond
+config_save_path: res/configs/cond
 output_dir: res
 dataset_path: datasets/gansim_small.npy
 
@@ -14,3 +14,8 @@ training.metric_step: 100
 
 clearml.use_clearml: False
 wandb.use_wandb: False
+
+model_config_path: configs/default/models/cond_sagan.yaml
+model.cond_dim_ratio: 8
+data.n_pixels_cond: 20
+training.cond_penalty: 2.5

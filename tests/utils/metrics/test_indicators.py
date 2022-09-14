@@ -4,6 +4,7 @@ from typing import Tuple
 
 import numpy as np
 import pytest
+import pytest_check as check
 
 from utils.metrics.indicators import compute_indicators
 
@@ -35,24 +36,23 @@ def test_compute_indicators(data: Tuple[np.ndarray, np.ndarray]) -> None:
     for i, indicators_list in enumerate([indicators_list_1, indicators_list_2,
                                          indicators_list_3]):
         for indicators in indicators_list:
-            assert indicators.keys() >= expected_keys, (
-                f'Missing keys for list {i}')
+            check.greater_equal(indicators.keys(), expected_keys, (
+                f'Missing keys for list {i}'))
             for ind_name, values in indicators.items():
-                assert isinstance(values, list)
-                assert len(values) == 5, (
-                    f'Wrong shape for indicator {ind_name}, list {i}')
+                check.is_instance(values, list)
+                check.equal(len(values), 5, (
+                    f'Wrong shape for indicator {ind_name}, list {i}'))
     # Case wrong data type
     data_wrong = data_2d.astype(np.uint16)
-    with pytest.raises(ValueError, match='.*uint16.*'):
+    with check.raises(ValueError):
         compute_indicators(data_wrong)
     # Case wrong data dim
     data_wrong = np.expand_dims(data_3d, axis=0)
-    with pytest.raises(ValueError, match=f'.*{data_wrong.ndim}.*'):
+    with check.raises(ValueError):
         compute_indicators(data_wrong)
     # Case wrong connectivity
-    with pytest.raises(ValueError, match='.*5.*'):
+    with check.raises(ValueError):
         compute_indicators(data_2d, connectivity=5)
     # Case connectivity == 3 in 2D
-    with pytest.raises(ValueError, match='Connectivity 3 is not supported '
-                       'for 2D images.'):
+    with check.raises(ValueError):
         compute_indicators(data_2d, connectivity=3)

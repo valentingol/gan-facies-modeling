@@ -4,6 +4,7 @@ from typing import Tuple
 
 import numpy as np
 import pytest
+import pytest_check as check
 
 from utils.metrics.components import get_components_properties, get_neighbors
 
@@ -30,9 +31,9 @@ def test_get_components_properties(data: Tuple[np.ndarray, np.ndarray]
         'n_units', 'mask_unit'
     }
     for properties in properties_list_2d:
-        assert set(properties.keys()) == expected_keys
+        check.equal(set(properties.keys()), expected_keys)
     for properties in properties_list_3d:
-        assert set(properties.keys()) == expected_keys
+        check.equal(set(properties.keys()), expected_keys)
 
 
 def test_get_neighbors(data: Tuple[np.ndarray, np.ndarray]) -> None:
@@ -44,8 +45,8 @@ def test_get_neighbors(data: Tuple[np.ndarray, np.ndarray]) -> None:
     neighbors_3d_con_2 = get_neighbors(data_3d, connectivity=2)
     neighbors_3d_con_3 = get_neighbors(data_3d, connectivity=3)
 
-    assert neighbors_2d_con_1.shape == (5, 10, 10, 4)
-    assert neighbors_2d_con_2.shape == (5, 10, 10, 8)
-    assert neighbors_3d_con_1.shape == (5, 5, 5, 5, 6)
-    assert neighbors_3d_con_2.shape == (5, 5, 5, 5, 18)
-    assert neighbors_3d_con_3.shape == (5, 5, 5, 5, 26)
+    check.equal(neighbors_2d_con_1.shape, (5, 10, 10, 4))
+    check.equal(neighbors_2d_con_2.shape, (5, 10, 10, 8))
+    check.equal(neighbors_3d_con_1.shape, (5, 5, 5, 5, 6))
+    check.equal(neighbors_3d_con_2.shape, (5, 5, 5, 5, 18))
+    check.equal(neighbors_3d_con_3.shape, (5, 5, 5, 5, 26))

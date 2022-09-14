@@ -3,7 +3,7 @@
 import os
 import sys
 
-import pytest
+import pytest_check as check
 
 from utils.github_actions.pydocstyle_manager import check_output
 
@@ -14,7 +14,7 @@ def test_check_output() -> None:
     sys.argv = ['--n_errors=0']
     check_output()
     sys.argv = ['--n_errors=1']
-    with pytest.raises(ValueError, match='.*found 1 error.*'):
+    with check.raises(ValueError):
         check_output()
     sys.argv = old_argv  # Restore sys.argv
 
@@ -23,7 +23,7 @@ def test_pydocstyle_manager() -> None:
     """Test pydocstyle_manager script."""
     run = os.system('python utils/github_actions/pydocstyle_manager.py'
                     ' --n_errors=0')
-    assert run == 0  # raise no error
+    check.equal(run, 0)  # raise no error
     run = os.system('python utils/github_actions/pydocstyle_manager.py'
                     ' --n_errors=1')
-    assert run != 0  # raise error
+    check.not_equal(run, 0)  # raise error
