@@ -187,9 +187,9 @@ def test_train(mocker: MockerFixture) -> None:
     # Test get_log_to_dict method
     logs = trainer.get_log_to_dict(
         {
-            'g_loss': torch.tensor(0.3),
-            'd_loss': torch.tensor(-0.2),
-            'test': torch.tensor(0.2)
+            'g_loss': (torch.tensor(0.3), 'green', 6),
+            'd_loss': (torch.tensor(-0.2), 'red', 6),
+            'test': (torch.tensor(0.2), 'blue', 6),
         }, avg_gammas=[0.5, 0.6, 0.7])
     expected_logs = {
         'g_loss': 0.3,

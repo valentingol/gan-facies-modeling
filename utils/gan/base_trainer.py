@@ -430,13 +430,14 @@ class BaseTrainerGAN(ABC):
     def get_log_to_dict(self, metrics: Dict[str, torch.Tensor],
                         avg_gammas: List[float]) -> Dict[str, float]:
         """Get dict logs from metrics and gammas to dictionary."""
-        g_loss, d_loss = metrics['g_loss'].item(), metrics['d_loss'].item()
+        g_loss = metrics['g_loss'][0].item()
+        d_loss = metrics['d_loss'][0].item()
         logs = {
             'sum_losses': g_loss + d_loss,
             'abs_losses': abs(g_loss) + abs(d_loss)
         }
         for metric_name, metric in metrics.items():
-            logs[metric_name] = metric.item()
+            logs[metric_name] = metric[0].item()
         for i, avg_gamma in enumerate(avg_gammas):
             logs[f'avg_gamma{i + 1}'] = avg_gamma
         return logs
