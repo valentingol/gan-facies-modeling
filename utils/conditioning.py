@@ -65,7 +65,6 @@ def colorize_pixel_map(pixel_maps: torch.Tensor) -> Image:
     pixel_maps_np = np.transpose(pixel_maps_np, (0, 2, 3, 1))
     mask_pixels = pixel_maps_np[..., 0].copy()
     mask_pixels = mask_pixels.astype(np.uint8)
-    print('DEBUG', np.count_nonzero(mask_pixels[0]))
 
     pixel_maps_np[..., 0] = np.all(pixel_maps_np[..., 1:] == 0,
                                    axis=-1).astype(np.float32)

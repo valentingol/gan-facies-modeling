@@ -241,7 +241,6 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     batch_size = (config.data.train_batch_size
                   if training else config.data.test_batch_size)
     print(" -> Generating images for metrics calculation:", end='\r')
-    print('\nDEBUG', batch_size)
     # Generate more than n_images images to compute metrics
     data_gen = []
     with torch.no_grad():
