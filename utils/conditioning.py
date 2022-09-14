@@ -36,9 +36,9 @@ def generate_pixel_maps(batch_size: int, n_classes: int,
         Pixel maps of size (B, n_classes, H, W) (dtype torch.float32).
     """
     if isinstance(n_pixels, int):
-        pass
+        n_pixels_int = n_pixels
     elif isinstance(n_pixels, list) and len(n_pixels) == 2:
-        n_pixels = np.random.randint(n_pixels[0], n_pixels[1])
+        n_pixels_int = np.random.randint(n_pixels[0], n_pixels[1])
     else:
         if isinstance(n_pixels, list):
             raise ValueError("n_pixels must be int or list of length 2, "
@@ -49,10 +49,10 @@ def generate_pixel_maps(batch_size: int, n_classes: int,
                              device=device, dtype=torch.float32)
     for i_batch in range(batch_size):
         tuples = [(i, j) for i in range(data_size) for j in range(data_size)]
-        pixels_idx = random.sample(tuples, n_pixels)  # without replacement
+        pixels_idx = random.sample(tuples, n_pixels_int)  # without replacement
         pixels_h = [i for i, _ in pixels_idx]
         pixels_w = [j for _, j in pixels_idx]
-        classes = torch.randint(0, n_classes, (n_pixels, ), device=device)
+        classes = torch.randint(0, n_classes, (n_pixels_int, ), device=device)
         pixel_maps[i_batch, classes, pixels_h, pixels_w] = 1.0
         # Class 0 here is actually the mask of the pixels to keep
         pixel_maps[i_batch, 0, pixels_h, pixels_w] = 1.0
