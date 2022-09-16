@@ -128,8 +128,10 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
     # Save indicators
     indicators_path = compute_save_indicators(data_loader32, config32)
 
-    evaluate(gen32, config32, training=False, step=13, indicators_path=None,
-             save_json=True, save_csv=True, n_images=4)
+    _, other_metrics = evaluate(gen32, config32, training=False, step=13,
+                                indicators_path=None, save_json=True,
+                                save_csv=True, n_images=4)
+    check.is_in('cond_acc', other_metrics)
     check_exists('res/tmp_test/metrics/test_boxes_step_13.png')
     check_exists('res/tmp_test/metrics/test_metrics_step_13.json')
     check_exists('res/tmp_test/metrics/test_metrics_step_13.csv')
@@ -141,8 +143,10 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
     # Save indicators
     indicators_path = compute_save_indicators(data_loader64, config64)
 
-    evaluate(gen64, config64, training=True, step=8, indicators_path=None,
-             save_json=True, save_csv=True, n_images=4)
+    _, other_metrics = evaluate(gen64, config64, training=True, step=8,
+                                indicators_path=None, save_json=True,
+                                save_csv=True, n_images=4)
+    check.equal(other_metrics, {})
     check_exists('res/tmp_test/metrics/boxes_step_8.png')
     check_exists('res/tmp_test/metrics/metrics_step_8.json')
     check_exists('res/tmp_test/metrics/metrics_step_8.csv')
@@ -155,12 +159,14 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
 
 def test_print_metrics() -> None:
     """Test print_metrics."""
-    metrics = {
+    w_dists = {
         'ind1_cls_1': 0.3,
         'ind2_cls_1': 0.2,
         'ind1_cls_2': 0.1,
         'ind2_cls_2': 0.4,
         'global': 0.5,
     }
+    other_metrics = {'cond_acc': 0.6}
+    metrics = w_dists, other_metrics
     print_metrics(metrics, step=None)
     print_metrics(metrics, step=2000)

@@ -18,4 +18,4 @@ if __name__ == '__main__':
                                     unit_component_size=unit_component_size,
                                     connectivity=connectivity,
                                     save_boxes_path='perfect_metrics.png')[0]
-    print_metrics(metrics)
+    print_metrics(metrics=(metrics, {}))

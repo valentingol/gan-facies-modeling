@@ -2,34 +2,46 @@
 
 import json
 import os
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import pandas as pd
 
+MetricsType = Tuple[Dict[str, float], Dict[str, float]]
 
-def save_metrics(metrics: Dict[str, float], metrics_save_path: str,
+
+def save_metrics(metrics: MetricsType, metrics_save_path: str,
                  save_json: bool, save_csv: bool) -> None:
     """Save metrics in json and/or csv file."""
     metrics_dir, _ = os.path.split(metrics_save_path)
+    if metrics_dir == '':
+        metrics_dir = '.'
     os.makedirs(metrics_dir, exist_ok=True)
     if save_json:
         save_metrics_path_json = metrics_save_path + '.json'
         with open(save_metrics_path_json, 'w', encoding='utf-8') as file_out:
-            json.dump(metrics, file_out, separators=(',', ':'),
+            json.dump({**metrics[0], **metrics[1]}, file_out,
+                      separators=(',', ':'),
                       sort_keys=False, indent=4)
+        print(f'Metrics saved at {save_metrics_path_json}')
     if save_csv:
         save_metrics_path_csv = metrics_save_path + '.csv'
-        n_classes = get_n_classes(metrics)
-        split_metrics = split_metric(metrics)
+        n_classes = get_n_classes(metrics[0])
+        split_wdists = split_wass_dists(metrics[0])
         header = [f'Class {i}' for i in range(1, n_classes + 1)]
         header += ['Mean']
+        if 'cond_acc' in metrics[1]:
+            header += ['Conditional Acc']
+            split_metrics = split_wdists + [metrics[1]]
+        else:
+            split_metrics = split_wdists
         pd.DataFrame(split_metrics).T.to_csv(save_metrics_path_csv,
                                              index=True,
                                              header=header,
                                              float_format='%.4f')
+        print(f'Metrics saved at {save_metrics_path_csv}')
 
 
-def split_metric(metrics: Dict[str, float]) -> List[Dict[str, float]]:
+def split_wass_dists(metrics: Dict[str, float]) -> List[Dict[str, float]]:
     """Split metrics by classes."""
     n_classes = get_n_classes(metrics)
     split_metrics = []

@@ -30,6 +30,7 @@ import utils.metrics as met
 from utils.configs import ConfigType
 from utils.data.data_loader import DistributedDataLoader
 from utils.data.process import to_img_grid
+from utils.metrics.tools import MetricsType
 
 BatchType = Union[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]
 
@@ -499,17 +500,17 @@ class BaseTrainerGAN(ABC):
                 os.path.join(self.model_save_path,
                              f'discriminator_step_{step + 1}.pth'))
 
-    def compute_metrics(self, gen: Module) -> Dict[str, float]:
+    def compute_metrics(self, gen: Module) -> MetricsType:
         """Compute metrics from input generator."""
         print('Computing metrics...')
-        w_dists = met.evaluate(gen=gen, config=self.config, training=True,
+        metrics = met.evaluate(gen=gen, config=self.config, training=True,
                                step=self.step + 1,
                                indicators_path=self.indicators_path,
                                save_json=False, save_csv=True)
         print()
-        return w_dists
+        return metrics
 
-    def log_metrics(self, w_dists: Dict[str, float]) -> None:
+    def log_metrics(self, metrics: MetricsType) -> None:
         """Log metrics in console and wandb/clearml if enabled."""
         config = self.config
 
@@ -533,15 +534,16 @@ class BaseTrainerGAN(ABC):
 
         # Log the metrics in the console and wandb or clearml if enabled
         print("Wasserstein distances to **training** dataset indicators:")
-        met.print_metrics(w_dists, step=self.step + 1)
+        met.print_metrics(metrics, step=self.step + 1)
         if config.wandb.use_wandb:
-            wandb.log(w_dists)
+            wandb.log({**metrics[0], **metrics[1]})
         if config.clearml.use_clearml:
-            for ind_name, value in w_dists.items():
-                if ind_name == 'global':
+            all_metrics = {**metrics[0], **metrics[1]}
+            for ind_name, value in all_metrics.items():
+                if ind_name in {'global', 'cond_acc'}:
                     clearml.Logger.current_logger().report_scalar(
-                        'global',  # base name of indicator
-                        'global',  # class number
+                        ind_name,  # base name of indicator
+                        ind_name,  # class number
                         value=value,
                         iteration=self.step + 1)
                 else:

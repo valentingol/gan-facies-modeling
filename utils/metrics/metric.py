@@ -17,7 +17,7 @@ from utils.conditioning import generate_pixel_maps
 from utils.configs import ConfigType
 from utils.data.data_loader import DistributedDataLoader
 from utils.metrics.indicators import compute_indicators
-from utils.metrics.tools import save_metrics, split_metric
+from utils.metrics.tools import MetricsType, save_metrics, split_wass_dists
 from utils.metrics.visualize import plot_boxes
 
 IndicatorsList = List[Dict[str, List[float]]]
@@ -203,7 +203,7 @@ def compute_save_indicators(data_loader: DistributedDataLoader,
 
 def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
              indicators_path: Optional[str] = None, save_json: bool = False,
-             save_csv: bool = False, n_images: int = 1024) -> Dict[str, float]:
+             save_csv: bool = False, n_images: int = 1024) -> MetricsType:
     """Compute metrics from generator output.
 
     Compute Wasserstein distances between generated images indicators
@@ -235,6 +235,8 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
         are indicators name (with corresponding class) and the value is
         the Wasserstein distance between values of the two classes.
         Lower values means better similarity.
+    other_metrics : Dict[str, float]
+        Other metrics.
     """
     gen.eval()
     device = next(gen.parameters()).device
@@ -244,6 +246,7 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     # Generate more than n_images images to compute metrics
     data_gen = []
     with torch.no_grad():
+        n_wrongs, total_pixels = 0, 0
         for k in range(max(1, int(np.ceil(n_images // batch_size)))):
             if config.trunc_ampl > 0:
                 # Truncation trick
@@ -255,21 +258,39 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
                                       device=device)
             if 'cond' in config.model.architecture:
                 n_pixels = config.data.n_pixels_cond
+                pixel_size = config.data.pixel_size_cond
                 data_size = config.model.data_size
                 pixel_maps = generate_pixel_maps(batch_size=batch_size,
                                                  n_classes=gen.n_classes,
                                                  n_pixels=n_pixels,
+                                                 pixel_size=pixel_size,
                                                  data_size=data_size,
                                                  device=device)
                 out = gen(z_input, pixel_maps=pixel_maps)
+                out = torch.argmax(out, dim=1).detach().cpu().numpy()
+                pixel_maps_np = pixel_maps.detach().cpu().numpy()
+                pixel_classes = np.concatenate([
+                    1 - np.sum(pixel_maps_np[:, 1:], axis=1, keepdims=True),
+                    pixel_maps_np[:, 1:]
+                    ], axis=1)
+                pixel_classes = np.argmax(pixel_classes, axis=1)
+                pixel_classes = np.where(pixel_maps_np[:, 0], pixel_classes, 0)
+                out_pixels = np.where(pixel_maps_np[:, 0], out, 0)
+                n_wrongs += np.count_nonzero(out_pixels - pixel_classes)
+                total_pixels += np.count_nonzero(pixel_maps_np[:, 0])
+
             else:
                 out = gen(z_input)
-            out = torch.argmax(out, dim=1).detach().cpu().numpy()
+                out = torch.argmax(out, dim=1).detach().cpu().numpy()
             torch.cuda.empty_cache()  # Free GPU memory
             data_gen.append(out)
             print(
                 " -> Generating images for metrics calculation: "
                 f"{(k + 1)*batch_size} images", end='\r')
+    if total_pixels > 0:  # conditional GAN
+        other_metrics = {'cond_acc': 1.0 - n_wrongs / total_pixels}
+    else:
+        other_metrics = {}
     print()
     data_gen_arr = np.vstack(data_gen)
     data_gen_arr = data_gen_arr.astype(np.uint8)
@@ -314,30 +335,29 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     w_dists = wasserstein_distances(data_gen_arr, indicators_list_ref,
                                     save_boxes_path=save_boxes_path,
                                     **config.metrics)[0]
+    save_metrics((w_dists, other_metrics), metrics_save_path,
+                 save_json=save_json, save_csv=save_csv)
+    return w_dists, other_metrics
 
-    save_metrics(w_dists, metrics_save_path, save_json=save_json,
-                 save_csv=save_csv)
-    return w_dists
 
-
-def print_metrics(metrics: Dict[str, float],
+def print_metrics(metrics: MetricsType,
                   step: Optional[int] = None) -> None:
     """Print metrics witch colored table."""
     console = Console()
-    title = 'Metrics' if step is None else f'Metrics (step {step})'
+    title = 'Wasserstein dists' if step is None else f'Metrics (step {step})'
     table = Table(title=title, show_header=True, header_style='yellow',
                   title_style='bold yellow')
-
-    split_metrics = split_metric(metrics)
+    wdists = metrics[0]
+    split_wdists = split_wass_dists(wdists)
 
     table.add_column('Indicators', style='green', justify='center')
-    n_classes = len(split_metrics) - 1
+    n_classes = len(split_wdists) - 1
     for class_id in range(1, n_classes + 1):
         table.add_column(f'Class {class_id}', style='#0835ff',
                          justify='center')
     table.add_column('Mean', style='#b108ff', justify='center')
     rows, ind_names = {}, []
-    for i, metrics_cls in enumerate(split_metrics[:-1]):
+    for i, metrics_cls in enumerate(split_wdists[:-1]):
         for ind_name, value in metrics_cls.items():
             if ind_name not in rows:
                 ind_names.append(ind_name)
@@ -348,10 +368,10 @@ def print_metrics(metrics: Dict[str, float],
     for ind_name, values in rows.items():
         row = [float(val) for val in values if val != '-']
         values[-1] = f'{np.mean(row):.4f}'
-    rows['global'] = ['-'] * n_classes + [f'{metrics["global"]:.4f}']
+    rows['global'] = ['-'] * n_classes + [f'{wdists["global"]:.4f}']
 
-    # Compute mean of indicators for each classes
-    for i in range(0, len(rows[list(rows.keys())[0]])):
+    # Compute mean of indicators for each class
+    for i in range(0, len(rows[list(rows.keys())[0]]) - 1):
         mean = np.mean([float(row[i]) for row in rows.values()
                         if row[i] != '-'])
         rows['global'][i] = f'{mean:.4f}'
@@ -364,3 +384,9 @@ def print_metrics(metrics: Dict[str, float],
         else:
             table.add_row(ind_name, *values)
     console.print(table)
+
+    # Print other metrics if any
+    if 'cond_acc' in metrics[1]:
+        cond_acc = metrics[1]['cond_acc']
+        console.print("Conditional accuracy: ", style='bold yellow', end='')
+        console.print(f"{cond_acc:.4f}", style='bold #ff8519', highlight=False)

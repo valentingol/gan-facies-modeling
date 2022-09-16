@@ -161,7 +161,7 @@ def test_train(mocker: MockerFixture) -> None:
     """Test train method."""
     # Mock third party functions
     w_dists = {'ind1_cls_1': 0.1, 'ind1_cls_2': 0.2, 'ind2_cls_1': 0.3,
-               'ind2_cls_2': 0.4, 'global': 0.2}
+               'ind2_cls_2': 0.4, 'global': 0.2}, {'cond_acc': 0.5}
     mocker.patch('utils.metrics.compute_save_indicators')
     mocker.patch('utils.metrics.evaluate', return_value=w_dists)
     mocker.patch('utils.auxiliaries.get_delta_eta',
