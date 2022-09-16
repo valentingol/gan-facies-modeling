@@ -66,10 +66,12 @@ def test(config: ConfigType) -> None:
         # Create pixel_maps
         with torch.no_grad():
             n_pixels = config.data.n_pixels_cond
+            pixel_size = config.data.pixel_size_cond
             data_size = config.model.data_size
             pixel_maps = generate_pixel_maps(
                 batch_size=batch_size, n_classes=n_classes,
-                n_pixels=n_pixels, data_size=data_size, device=device)
+                n_pixels=n_pixels, pixel_size=pixel_size, data_size=data_size,
+                device=device)
             colored_pixel_maps = colorize_pixel_map(pixel_maps)
             images, attn_list = generator.generate(z_input, pixel_maps,
                                                    with_attn=True)
@@ -103,10 +105,10 @@ def test(config: ConfigType) -> None:
             np.save(osp.join(attn_out_path, f'attn_{i}_step_{step}.npy'), attn)
 
     compute_save_indicators(data_loader, config)
-    w_dists = evaluate(gen=generator, config=config, training=False, step=step,
+    metrics = evaluate(gen=generator, config=config, training=False, step=step,
                        save_json=False, save_csv=True)
     print("Metrics w.r.t training set:")
-    print_metrics(w_dists)
+    print_metrics(metrics)
 
 
 if __name__ == '__main__':

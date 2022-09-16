@@ -31,6 +31,4 @@ def merge_configs(config: ConfigType, new_dict_config: dict) -> ConfigType:
     new_config.merge(new_dict_config,
                      do_not_pre_process=True,
                      verbose=False)
-    print('DEBUG', new_config.data.n_pixels_cond)
-    print(new_config.get_dict())
     return new_config
