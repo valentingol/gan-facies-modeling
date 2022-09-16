@@ -101,6 +101,9 @@ def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
         (height*int(sqrt(batch_size)), width*int(sqrt(batch_size), 3).
         Note that remaining images are discarded!
     """
+    # Pad images with white pixels
+    batched_images = np.pad(batched_images, ((0, 0), (1, 1), (1, 1), (0, 0)),
+                            constant_values=255)
     y_dim, x_dim = batched_images.shape[1:3]
     side = min(8, int(np.sqrt(batched_images.shape[0])))
     image = batched_images[:side * side].reshape(side, side, y_dim, x_dim, 3)
@@ -109,8 +112,8 @@ def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
     return img_grid
 
 
-def sample_pixels_2d_np(data: np.ndarray,
-                        n_pixels: Union[int, List[int]]) -> np.ndarray:
+def sample_pixels_2d_np(data: np.ndarray, n_pixels: Union[int, List[int]],
+                        pixel_size: int) -> np.ndarray:
     """Sample pixel map similar to GANSim's 'well facies data' (2D case).
 
     Return a binary map containing n_classes values for each pixel.
@@ -129,6 +132,8 @@ def sample_pixels_2d_np(data: np.ndarray,
         If int, the number of pixels to sample for each 2D matrix.
         If tuple, the number of pixels to sample for each 2D matrix
         will be sampled uniformly between the two values.
+    pixel_size : int
+        Size of the pixel to sample. The class is uniform in the pixel.
 
     Returns
     -------
@@ -149,15 +154,31 @@ def sample_pixels_2d_np(data: np.ndarray,
         raise ValueError("n_pixels must be int or list of 2 ints, "
                          f"found type {type(n_pixels)}.")
     height, width = data.shape[0:2]
-    tuples = [(i, j) for i in range(height) for j in range(width)]
-    pixels_idx = random.sample(tuples, n_pixels_int)  # without replacement
-    pixels_h = [i for i, _ in pixels_idx]
-    pixels_w = [j for _, j in pixels_idx]
+    # Get all possible big-pixel coordinates
+    # in (data_size // pixel_size) scale
+    tuples = [(i, j) for i in range(height // pixel_size)
+              for j in range(width // pixel_size)]
+    # Randomly sample big-pixels (without replacement)
+    pixels_idx = random.sample(tuples, n_pixels_int)
+    # Get mini-pixel coordinates of a big-pixel w.r.t the top-left corner
+    grid = np.meshgrid(np.arange(pixel_size), np.arange(pixel_size))
+    grid_h, grid_w = grid[0].flatten(), grid[1].flatten()
+    # Get mini-pixel coordinates in data_size scale
+    pixels_h = [i*pixel_size + k for i, _ in pixels_idx for k in grid_h]
+    pixels_w = [j*pixel_size + k for _, j in pixels_idx for k in grid_w]
     pixel_mask = np.zeros((height, width), dtype=np.float32)
     pixel_mask[pixels_h, pixels_w] = 1.0
     pixel_mask = pixel_mask[..., None]
     # Remove first class and all information about not sampled pixels
-    classes = data[..., 1:] * pixel_mask  # shape (h, w, n_classes-1)
-    pixel_map = np.concatenate([pixel_mask, classes], axis=-1)
+    classes = data[..., 1:]
+    pixel_classes = np.zeros_like(classes)
+    for pixel_group, (i, j) in enumerate(pixels_idx):
+        y_center = i * pixel_size + pixel_size // 2
+        x_center = j * pixel_size + pixel_size // 2
+        pixel_class = classes[y_center, x_center]
+        start = pixel_group * pixel_size**2
+        end = (pixel_group + 1) * pixel_size**2
+        pixel_classes[pixels_h[start:end], pixels_w[start:end]] = pixel_class
+    pixel_map = np.concatenate([pixel_mask, pixel_classes], axis=-1)
     pixel_map = pixel_map.astype(np.float32)
     return pixel_map  # shape (h, w, n_classes)

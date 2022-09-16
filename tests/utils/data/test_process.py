@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 import pytest_check as check
+from skimage.measure import label
 
 from tests.utils.conftest import check_allclose
 from utils.data.process import (color_data_np, random_crop_np, resize_np,
@@ -87,16 +88,21 @@ def test_to_img_grid() -> None:
     batched_images = np.random.rand(65, 8, 8, 3)
     batched_images = (batched_images * 255).astype(np.uint8)
     img_grid = to_img_grid(batched_images)
-    check.equal(img_grid.shape, (64, 64, 3))
+    check.equal(img_grid.shape, (8 * (8+2), 8 * (8+2), 3))
 
 
 def test_sample_pixels_2d_np(data_one_hot: np.ndarray) -> None:
     """Test sample_pixels_2d_np."""
     # Case n_pixels is int
-    pixel_maps = sample_pixels_2d_np(data_one_hot, 5)
+    pixel_maps = sample_pixels_2d_np(data_one_hot, n_pixels=2, pixel_size=2)
     check.equal(pixel_maps.shape, (4, 5, 2))
     check.equal(pixel_maps.dtype, np.float32)
-    check.equal(np.count_nonzero(pixel_maps[..., 0]), 5)
+    check.equal(np.count_nonzero(pixel_maps[..., 0]), 2 * 2 * 2)
+    labels = label(pixel_maps[..., 0] + 2*pixel_maps[..., 1], background=0,
+                   connectivity=1)
+    compo_size = [np.count_nonzero(labels == i) >= 4
+                  for i in range(1, np.max(labels) + 1)]
+    check.is_true(all(compo_size))
     check.is_true(((pixel_maps == 0.0) | (pixel_maps == 1.0)).all())
     masked_pixels = (pixel_maps[..., 0] == 0.0)[..., None]
     check.is_true((masked_pixels * pixel_maps == 0.0).all())
@@ -104,12 +110,13 @@ def test_sample_pixels_2d_np(data_one_hot: np.ndarray) -> None:
                    | (np.sum(pixel_maps[..., 1:], axis=-1) == 1.0)).all())
 
     # Case n_pixels is list of length 2
-    pixel_maps = sample_pixels_2d_np(data_one_hot, [5, 10])
+    pixel_maps = sample_pixels_2d_np(data_one_hot, [5, 10], pixel_size=1)
     check.greater_equal(np.count_nonzero(pixel_maps[..., 0]), 5)
     check.less_equal(np.count_nonzero(pixel_maps[..., 0]), 10)
 
     # Case wrong n_pixels value or type
     with check.raises(ValueError):
-        sample_pixels_2d_np(data_one_hot, '5')  # type: ignore
+        sample_pixels_2d_np(data_one_hot, n_pixels='5',  # type: ignore
+                            pixel_size=1)
     with check.raises(ValueError):
-        sample_pixels_2d_np(data_one_hot, [5, 10, 15])
+        sample_pixels_2d_np(data_one_hot, n_pixels=[5, 10, 15], pixel_size=1)

@@ -71,12 +71,14 @@ class CondTrainerSAGAN(BaseTrainerGAN):
                 g_loss = -g_out_fake.mean()
 
             # Add conditional penalty
+            pixel_size = self.config.data.pixel_size_cond
             ground_truth = pixel_maps[:, 1:]  # GT for class 1:n_classes
             first_class = torch.all(ground_truth == 0, dim=1)[:, None]
             first_class = pixel_maps[:, 0:1] * first_class  # GT for class 0
             ground_truth = torch.cat([first_class, ground_truth], dim=1)
             diff = pixel_maps[:, 0:1]*fake_data - ground_truth
             cond_loss = torch.norm(diff, dim=(1, 2, 3), p=2).mean()
+            cond_loss /= pixel_size
             cond_loss *= self.config.training.cond_penalty
 
             g_loss += cond_loss
@@ -274,9 +276,11 @@ class CondTrainerSAGAN(BaseTrainerGAN):
     def create_pixel_maps(self) -> None:
         """Generate pixel maps for evaluation."""
         n_pixels = self.config.data.n_pixels_cond
+        pixel_size = self.config.data.pixel_size_cond
         data_size = self.config.model.data_size
         self.fixed_pixel_maps = generate_pixel_maps(batch_size=self.batch_size,
                                                     n_classes=self.n_classes,
                                                     n_pixels=n_pixels,
+                                                    pixel_size=pixel_size,
                                                     data_size=data_size,
                                                     device="cuda:0")

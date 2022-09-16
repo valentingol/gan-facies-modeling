@@ -113,6 +113,7 @@ class DatasetCond2D(Dataset):
         self.data_config = data_config
         self.data_size = data_size
         self.n_pixels = data_config.n_pixels_cond
+        self.pixel_size = data_config.pixel_size_cond
         self.augmentation_fn = augmentation_fn
         dataset = np.load(dataset_path)
         self.n_classes = np.max(dataset) + 1
@@ -135,7 +136,8 @@ class DatasetCond2D(Dataset):
             data = random_crop_np(data, self.data_size)
         if self.augmentation_fn is not None:
             data = self.augmentation_fn(data)
-        pixel_maps_np = sample_pixels_2d_np(data, self.n_pixels)
+        pixel_maps_np = sample_pixels_2d_np(data, self.n_pixels,
+                                            self.pixel_size)
         # Chanel first
         data = np.transpose(data, (2, 0, 1))
         pixel_maps_np = np.transpose(pixel_maps_np, (2, 0, 1))
