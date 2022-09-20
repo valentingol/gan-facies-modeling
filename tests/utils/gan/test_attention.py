@@ -3,16 +3,32 @@
 import pytest_check as check
 import torch
 
+from utils.configs import ConfigType
 from utils.gan.attention import SelfAttention
 
 
-def test_self_attention() -> None:
+def test_self_attention(configs: ConfigType) -> None:
     """Test SelfAttention."""
-    attention = SelfAttention(in_dim=16, att_dim=8, full_values=False)
+    config_32, config_64 = configs
+
+    # Case with out_layer = True
+    attention = SelfAttention(in_dim=16,
+                              attention_config=config_32.model.attention)
     out, attention = attention(torch.rand(2, 16, 9, 9))
     check.equal(out.shape, (2, 16, 9, 9))
-    check.equal(attention.shape, (2, 81, 81))
-    attention = SelfAttention(in_dim=16, att_dim=None, full_values=True)
+    check.equal(attention.shape, (2, 1, 81, 81))
+
+    # Case with out_layer = False
+    attention = SelfAttention(in_dim=16,
+                              attention_config=config_64.model.attention)
     out, attention = attention(torch.rand(2, 16, 9, 9))
     check.equal(out.shape, (2, 16, 9, 9))
-    check.equal(attention.shape, (2, 81, 81))
+    check.equal(attention.shape, (2, 4, 81, 81))
+
+    # Case with out_layer = False and v_ratio != 1
+    config_64_bis = config_64.copy()
+    config_64_bis.merge({"model": {"attention": {"v_ratio": 2}}},
+                        do_not_pre_process=True)
+    with check.raises(ValueError):
+        SelfAttention(in_dim=16,
+                      attention_config=config_64_bis.model.attention)
