@@ -6,12 +6,11 @@ from typing import Any, Tuple
 
 import numpy as np
 import pytest_check as check
+import torch
+from pytest_mock import MockerFixture
 
-from tests.utils.conftest import check_exists
-from tests.utils.gan.test_base_trainer import DataLoader32, DataLoader64
+from tests.utils.conftest import DataLoader32, DataLoader64, check_exists
 from utils.configs import GlobalConfig
-from utils.gan.cond_sagan.modules import CondSAGenerator
-from utils.gan.uncond_sagan.modules import UncondSAGenerator
 from utils.metrics.metric import (compute_save_indicators, evaluate,
                                   print_metrics, wasserstein_distances)
 
@@ -107,9 +106,15 @@ def test_compute_save_indicators(capsys: Any) -> None:
     os.remove('tests/datasets/data32.npy')
 
 
-def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
+def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig],
+                  mocker: MockerFixture) -> None:
     """Test evaluate."""
     config32, config64 = configs
+    w_dists = {'ind1_cls_1': 0.2, 'ind1_cls_2': 0.3,
+               'ind2_cls_1': 0.4, 'ind2_cls_2': 0.5,
+               'global': 0.5}
+    mocker.patch('utils.metrics.metric.wasserstein_distances',
+                 return_value=(w_dists, ([], [])))
     data_loader32 = DataLoader32()
     data_loader64 = DataLoader64()
     data32 = np.random.randint(0, 3, size=(4, 32, 32), dtype=np.uint8)
@@ -117,29 +122,33 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
     os.makedirs('tests/datasets', exist_ok=True)
     np.save('tests/datasets/data32.npy', data32)
     np.save('tests/datasets/data64.npy', data64)
-    gen32 = CondSAGenerator(n_classes=3, model_config=config32.model)
-    # Case indicators are missing
-    with check.raises(FileNotFoundError):
-        evaluate(gen32, config32, training=True, step=8, indicators_path=None,
-                 save_json=True, save_csv=True, n_images=10)
 
     # Case unconditional and training = False
-
+    gen32 = mocker.MagicMock(
+        n_classes=3,
+        eval=lambda: None,
+        parameters=lambda: iter([mocker.MagicMock(device='cpu')]),
+        return_value=torch.randn(3, 3, 32, 32)
+        )
     # Save indicators
     indicators_path = compute_save_indicators(data_loader32, config32)
 
     _, other_metrics = evaluate(gen32, config32, training=False, step=13,
-                                indicators_path=None, save_json=True,
-                                save_csv=True, n_images=4)
+                                indicators_path=indicators_path,
+                                save_json=True, save_csv=True,
+                                n_images=4)
     check.is_in('cond_acc', other_metrics)
-    check_exists('res/tmp_test/metrics/test_boxes_step_13.png')
     check_exists('res/tmp_test/metrics/test_metrics_step_13.json')
     check_exists('res/tmp_test/metrics/test_metrics_step_13.csv')
     os.remove(indicators_path)
 
     # Case conditional and training = True
-    gen64 = UncondSAGenerator(n_classes=3, model_config=config64.model)
-
+    gen64 = mocker.MagicMock(
+        n_classes=3,
+        eval=lambda: None,
+        parameters=lambda: iter([mocker.MagicMock(device='cpu')]),
+        return_value=torch.randn(2, 3, 64, 64)
+        )
     # Save indicators
     indicators_path = compute_save_indicators(data_loader64, config64)
 
@@ -147,7 +156,6 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
                                 indicators_path=None, save_json=True,
                                 save_csv=True, n_images=4)
     check.equal(other_metrics, {})
-    check_exists('res/tmp_test/metrics/boxes_step_8.png')
     check_exists('res/tmp_test/metrics/metrics_step_8.json')
     check_exists('res/tmp_test/metrics/metrics_step_8.csv')
 
