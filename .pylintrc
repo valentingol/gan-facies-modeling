@@ -148,7 +148,8 @@ confidence=HIGH,
 disable=no-member,
         no-name-in-module,
         not-callable,
-        redefined-outer-name
+        redefined-outer-name,
+        duplicate-code,
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
