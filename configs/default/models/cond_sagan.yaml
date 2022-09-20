@@ -6,7 +6,6 @@ data_size: 64  # could be either 32, 64, 128 or 256
 # NOTE: the number of blocks depends on the data size only:
 # data_size 32: 4 blocks, data_size 64: 5 blocks, data_size 128: 6 blocks, data_size 256: 7 blocks
 attn_layer_num: [3, 4]
-full_values: False
 z_dim: 128
 g_conv_dim: 64  # number of channels before the last layer of the generator
 d_conv_dim: 64  # number of channels after the first layer of the discriminator
@@ -14,3 +13,9 @@ d_conv_dim: 64  # number of channels after the first layer of the discriminator
 # cond_dim_ratio: define the number of channels of conditional feature maps
 # cond_dim = base_dim // cond_dim_ratio
 cond_dim_ratio: 8
+
+attention: !attention
+  n_heads: 1  # number of attention heads
+  out_layer: True  # whether to apply a linear layer to the output of the attention
+  qk_ratio: 8  # dimension for queries and keys is input_dim // qk_ratio
+  v_ratio: 2  # dimension for values is input_dim // qk_ratio, should be 1 if out_layer=False

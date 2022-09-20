@@ -49,8 +49,8 @@ class UncondSADiscriminator(nn.Module):
             setattr(self, f'conv{i}', block)
 
             if make_attention[i - 1]:
-                attn = SelfAttention(current_dim,
-                                     full_values=model_config.full_values)
+                attn = SelfAttention(in_dim=current_dim,
+                                     attention_config=model_config.attention)
                 # Add self-attention to the model
                 setattr(self, f'attn{attn_id}', attn)
                 attn_id += 1
@@ -159,8 +159,8 @@ class UncondSAGenerator(nn.Module):
             setattr(self, f'conv{i}', block)
 
             if make_attention[i - 1]:
-                attn = SelfAttention(current_dim,
-                                     full_values=model_config.full_values)
+                attn = SelfAttention(in_dim=current_dim,
+                                     attention_config=model_config.attention)
                 # Add self-attention to the model
                 setattr(self, f'attn{attn_id}', attn)
                 attn_id += 1

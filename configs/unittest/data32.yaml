@@ -15,8 +15,11 @@ model.attn_layer_num: [1, 2, 3]
 model.data_size: 32
 model.d_conv_dim: 8
 model.g_conv_dim: 8
-model.full_values: True
 model.init_method: orthogonal
+model.attention.n_heads: 1
+model.attention.out_layer: True
+model.attention.qk_ratio: 8
+model.attention.v_ratio: 2
 
 training.adv_loss: wgan-gp
 training.ema_start_step: 0

@@ -4,9 +4,64 @@ from typing import Tuple
 
 import numpy as np
 import pytest
+import torch
 from pytest_check import check_func
+from torch.utils.data import DataLoader
 
 from utils.configs import GlobalConfig
+from utils.data.data_loader import DistributedDataLoader
+
+
+class DataLoader64(DistributedDataLoader):
+    """Data loader for unit tests (data size 64)."""
+
+    def __init__(self) -> None:
+        # pylint: disable=super-init-not-called
+        self.n_classes = 4
+
+    def loader(self) -> DataLoader:
+        """Return pytorch data loader."""
+
+        class Dataset64(torch.utils.data.Dataset):
+            """Dataset for unit tests (data size 32)."""
+
+            def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
+                return torch.randn(4, 64, 64), 0
+
+            def __len__(self) -> int:
+                return 10
+
+        return torch.utils.data.DataLoader(dataset=Dataset64(),
+                                           batch_size=2,
+                                           shuffle=True,
+                                           num_workers=0,
+                                           )
+
+
+class DataLoader32(DistributedDataLoader):
+    """Data loader for unit tests (data size 32)."""
+
+    def __init__(self) -> None:
+        # pylint: disable=super-init-not-called
+        self.n_classes = 4
+
+    def loader(self) -> DataLoader:
+        """Return pytorch data loader."""
+
+        class Dataset32(torch.utils.data.Dataset):
+            """Dataset for unit tests (data size 32)."""
+
+            def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
+                return torch.randn(4, 32, 32), 0
+
+            def __len__(self) -> int:
+                return 10
+
+        return torch.utils.data.DataLoader(dataset=Dataset32(),
+                                           batch_size=2,
+                                           shuffle=True,
+                                           num_workers=0,
+                                           )
 
 
 @check_func

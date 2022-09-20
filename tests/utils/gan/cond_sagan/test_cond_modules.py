@@ -18,9 +18,9 @@ def test_sa_generator(configs: Tuple[GlobalConfig, GlobalConfig]) -> None:
     data, att_list = gen(z, pixel_maps, with_attn=True)
     check.equal(data.shape, (5, 4, 32, 32))
     check.equal(len(att_list), 3)
-    check.equal(att_list[0].shape, (5, 16, 16))
-    check.equal(att_list[1].shape, (5, 64, 64))
-    check.equal(att_list[2].shape, (5, 256, 256))
+    check.equal(att_list[0].shape, (5, 1, 16, 16))
+    check.equal(att_list[1].shape, (5, 1, 64, 64))
+    check.equal(att_list[2].shape, (5, 1, 256, 256))
     data = gen(z, pixel_maps, with_attn=False)
     check.is_instance(data, torch.Tensor)
 
