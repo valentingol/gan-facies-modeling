@@ -3,7 +3,7 @@
 import os
 import os.path as osp
 import shutil
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import ignite.distributed as idist
 import numpy as np
@@ -12,64 +12,10 @@ import torch
 from pytest_mock import MockerFixture
 from torch.nn import Module
 from torch.optim import Optimizer
-from torch.utils.data import DataLoader
 
-from tests.utils.conftest import check_exists
+from tests.utils.conftest import DataLoader32, DataLoader64, check_exists
 from utils.configs import GlobalConfig
-from utils.data.data_loader import DistributedDataLoader
 from utils.gan.base_trainer import BaseTrainerGAN, BatchType
-
-
-class DataLoader64(DistributedDataLoader):
-    """Data loader for unit tests (data size 64)."""
-
-    def __init__(self) -> None:
-        # pylint: disable=super-init-not-called
-        self.n_classes = 4
-
-    def loader(self) -> DataLoader:
-        """Return pytorch data loader."""
-
-        class Dataset64(torch.utils.data.Dataset):
-            """Dataset for unit tests (data size 32)."""
-
-            def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
-                return torch.randn(4, 64, 64), 0
-
-            def __len__(self) -> int:
-                return 10
-
-        return torch.utils.data.DataLoader(dataset=Dataset64(),
-                                           batch_size=2,
-                                           shuffle=True,
-                                           num_workers=0,
-                                           )
-
-
-class DataLoader32(DistributedDataLoader):
-    """Data loader for unit tests (data size 32)."""
-
-    def __init__(self) -> None:
-        # pylint: disable=super-init-not-called
-        self.n_classes = 4
-
-    def loader(self) -> DataLoader:
-        """Return pytorch data loader."""
-
-        class Dataset32(torch.utils.data.Dataset):
-            """Dataset for unit tests (data size 32)."""
-
-            def __getitem__(self, index: int) -> Tuple[torch.Tensor, int]:
-                return torch.randn(4, 32, 32), 0
-
-            def __len__(self) -> int:
-                return 10
-
-        return torch.utils.data.DataLoader(dataset=Dataset32(),
-                                           batch_size=2,
-                                           shuffle=True,
-                                           num_workers=0,
-                                           )
 
 
 class TrainerTest(BaseTrainerGAN):
@@ -91,7 +37,7 @@ class TrainerTest(BaseTrainerGAN):
 
     def build_model_opt(self) -> Tuple[Module, Module, Optimizer, Optimizer]:
 
-        class Generator(torch.nn.Module):
+        class Generator(Module):
             """Simple Generator"""
             def __init__(self) -> None:
                 super().__init__()
@@ -148,7 +94,6 @@ def build_trainers() -> Tuple[BaseTrainerGAN, BaseTrainerGAN]:
 
 # Test TrainerSAGAN
 
-
 def test_init() -> None:
     """Test init method."""
     build_trainers()
@@ -174,8 +119,29 @@ def test_train(mocker: MockerFixture) -> None:
     np.save('tests/datasets/data32.npy', data32)
     np.save('tests/datasets/data64.npy', data64)
 
+    # Mock train_discriminator and train_generator
+    def side_effect_disc(disc: Module, d_optimizer: Optimizer,
+                         *args: Optional[Tuple], **kwargs: Optional[Dict]
+                         ) -> Tuple[Module, Optimizer,
+                                    Dict[str, torch.Tensor]]:
+        # pylint: disable=unused-argument
+        losses = {'d_loss': (torch.tensor(0.3), 'red', 6)}
+        return disc, d_optimizer, losses
+
+    def side_effect_gen(gen: Module, g_optimizer: Optimizer,
+                        *args: Optional[Tuple], **kwargs: Optional[Dict]
+                        ) -> Tuple[Module, Optimizer,
+                                   Dict[str, torch.Tensor]]:
+        # pylint: disable=unused-argument
+        losses = {'g_loss': (torch.tensor(0.2), 'green', 6)}
+        return gen, g_optimizer, losses
+
     trainers = build_trainers()
     for trainer in trainers:
+        trainer.train_discriminator = mocker.MagicMock(  # type: ignore
+            side_effect=side_effect_disc)
+        trainer.train_generator = mocker.MagicMock(  # type: ignore
+            side_effect=side_effect_gen)
         trainer.train()
         check_exists('res/tmp_test/models/generator_step_2.pth')
         check_exists('res/tmp_test/models/discriminator_step_2.pth')
