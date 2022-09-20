@@ -2,9 +2,12 @@
 
 import json
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
+import numpy as np
 import pandas as pd
+
+from utils.configs import ConfigType
 
 MetricsType = Tuple[Dict[str, float], Dict[str, float]]
 
@@ -65,3 +68,32 @@ def get_n_classes(metrics: Dict[str, float]) -> int:
         if ind_name.split('_')[-1].isdigit():
             classes.append(int(ind_name.split('_')[-1]))
     return max(classes)
+
+
+def get_reference_indicators(config: ConfigType,
+                             indicators_path: Union[str, None],
+                             data_gen_arr: np.ndarray
+                             ) -> List[Dict[str, List[float]]]:
+    """Get reference indicators."""
+    if indicators_path is None:
+        dataset_body, _ = os.path.splitext(config.dataset_path)
+        data_size = config.model.data_size
+        unit_component_size = config.metrics.unit_component_size
+        if config.metrics.connectivity is None:
+            connectivity = data_gen_arr.ndim - 1
+        else:
+            connectivity = config.metrics.connectivity
+        indicators_path = (f'{dataset_body}_ds{data_size}_co'
+                           f'{connectivity}_us{unit_component_size}_'
+                           'indicators.json')
+
+    if not os.path.exists(indicators_path):
+        raise FileNotFoundError(
+            f"Indicators file {indicators_path} not found. Please start a "
+            "training with the current configuration to create it.")
+
+    # Get reference indicators
+    with open(indicators_path, 'r', encoding='utf-8') as file_in:
+        indicators_list_ref = json.load(file_in)
+
+    return indicators_list_ref
