@@ -17,7 +17,8 @@ from utils.conditioning import generate_pixel_maps
 from utils.configs import ConfigType
 from utils.data.data_loader import DistributedDataLoader
 from utils.metrics.indicators import compute_indicators
-from utils.metrics.tools import MetricsType, save_metrics, split_wass_dists
+from utils.metrics.tools import (MetricsType, get_reference_indicators,
+                                 save_metrics, split_wass_dists)
 from utils.metrics.visualize import plot_boxes
 
 IndicatorsList = List[Dict[str, List[float]]]
@@ -296,29 +297,13 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     data_gen_arr = data_gen_arr.astype(np.uint8)
     print(" -> Computing indicators...")
 
-    if indicators_path is None:
-        dataset_body, _ = osp.splitext(config.dataset_path)
-        data_size = config.model.data_size
-        unit_component_size = config.metrics.unit_component_size
-        if config.metrics.connectivity is None:
-            connectivity = data_gen_arr.ndim - 1
-        else:
-            connectivity = config.metrics.connectivity
-        indicators_path = (f'{dataset_body}_ds{data_size}_co'
-                           f'{connectivity}_us{unit_component_size}_'
-                           'indicators.json')
-
-    if not osp.exists(indicators_path):
-        raise FileNotFoundError(
-            f"Indicators file {indicators_path} not found. Please start a "
-            "training with the current configuration to create it.")
+    indicators_list_ref = get_reference_indicators(config, indicators_path,
+                                                   data_gen_arr)
 
     metrics_save_dir = osp.join(config.output_dir, config.run_name, 'metrics')
     os.makedirs(metrics_save_dir, exist_ok=True)
     save_boxes_path = None
-    # Get reference indicators
-    with open(indicators_path, 'r', encoding='utf-8') as file_in:
-        indicators_list_ref = json.load(file_in)
+
     if config.training.save_boxes:
         if training:
             save_boxes_path = osp.join(metrics_save_dir,
@@ -341,7 +326,7 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
 
 
 def print_metrics(metrics: MetricsType,
-                  step: Optional[int] = None) -> None:
+                  step: Optional[Union[int, None]] = None) -> None:
     """Print metrics witch colored table."""
     console = Console()
     title = 'Wasserstein dists' if step is None else f'Metrics (step {step})'
