@@ -2,6 +2,7 @@
 
 import os
 import os.path as osp
+from typing import Optional
 
 import numpy as np
 import torch
@@ -75,28 +76,27 @@ def test(config: ConfigType) -> None:
             colored_pixel_maps = colorize_pixel_map(pixel_maps)
             images, attn_list = generator.generate(z_input, pixel_maps,
                                                    with_attn=True)
+            _, _, proba_map = generator.proba_map(z_input, pixel_maps[0])
     else:
         colored_pixel_maps = None
+        proba_map = None
         with torch.no_grad():
             images, attn_list = generator.generate(z_input, with_attn=True)
 
-    # Save sample images in a grid
+    # Save and show sample images in a grid
     img_out_dir = osp.join(config.output_dir, config.run_name, 'samples')
     img_out_path = osp.join(img_out_dir, f'test_samples_step_{step}.png')
     img_grid = to_img_grid(images)
-    pil_images = Image.fromarray(img_grid)
-    os.makedirs(img_out_dir, exist_ok=True)
-    if colored_pixel_maps:
-        colored_pixel_maps.show(title=f'Test Samples (run {config.run_name},'
-                                f' step {step})')
-        cond_save_path = img_out_path.replace('samples', 'cond_pixels')
-        os.makedirs(osp.dirname(cond_save_path), exist_ok=True)
-        colored_pixel_maps.save(cond_save_path)
-    pil_images.show(title=f'Test Samples (run {config.run_name}, step {step})')
-    pil_images.save(img_out_path)
+    save_and_show(img_grid, img_out_path)
 
-    if config.save_attn:
-        # Save attention
+    # Save and show other images (if any)
+    cond_save_path = img_out_path.replace('samples', 'cond_pixels')
+    save_and_show(colored_pixel_maps, cond_save_path)
+    proba_save_path = img_out_path.replace('samples', 'proba_map')
+    save_and_show(proba_map, proba_save_path)
+
+    # Save attention (if save_attn is True)
+    if config.save_attn and attn_list != []:
         attn_out_path = osp.join(config.output_dir, config.run_name,
                                  'attention', 'test_gen_attn_step')
         os.makedirs(attn_out_path, exist_ok=True)
@@ -104,11 +104,24 @@ def test(config: ConfigType) -> None:
         for i, attn in enumerate(attn_list):
             np.save(osp.join(attn_out_path, f'attn_{i}_step_{step}.npy'), attn)
 
+    # Compute reference indicators if not already saved
     compute_save_indicators(data_loader, config)
+    # Compute and print metrics
     metrics = evaluate(gen=generator, config=config, training=False, step=step,
                        save_json=False, save_csv=True)
     print("Metrics w.r.t training set:")
     print_metrics(metrics)
+
+
+def save_and_show(image: Optional[np.ndarray], path: str) -> None:
+    """Save and show image using PIL."""
+    if image is None:
+        return
+    image_pil = Image.fromarray(image)
+    image_pil.show()
+    dir_path, _ = osp.split(path)
+    os.makedirs(dir_path, exist_ok=True)
+    image_pil.save(path)
 
 
 if __name__ == '__main__':

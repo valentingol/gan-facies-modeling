@@ -85,6 +85,46 @@ def color_data_np(data: np.ndarray) -> np.ndarray:
     return rgb_data
 
 
+def continuous_color_data_np(data: np.ndarray) -> np.ndarray:
+    """Continuously color data (one color per class).
+
+    Parameters
+    ----------
+    data : np.ndarray
+        Data of type float. Of shape (..., n_classes).
+        Values of data should be non-negative and up to 1.
+        along the last axis.
+
+    Returns
+    -------
+    rgb_data : np.ndarray
+        RGB data of type int with shape data.shape + (3,).
+    """
+    rgb_data = np.zeros(data.shape[:-1] + (3,), dtype=np.float32)
+    n_classes = data.shape[-1]
+    color_dict = {
+        0: [0, 0, 130],
+        1: [0, 110, 250],
+        2: [94, 235, 0],
+        3: [235, 223, 0],
+        4: [255, 153, 0],
+        5: [255, 64, 0],
+        6: [255, 0, 0],
+        7: [183, 0, 255],
+    }
+    if n_classes >= 8:
+        for i in range(8, n_classes):
+            red = np.random.randint(0, 256)
+            green = np.random.randint(0, 256)
+            blue = np.random.randint(0, 256)
+            color_dict[i] = [red, green, blue]
+    for i in range(n_classes):
+        rgb_data += data[..., i:i+1] * np.array(color_dict[i],
+                                                dtype=np.float32)
+    rgb_data = rgb_data.astype(np.uint8)
+    return rgb_data
+
+
 def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
     """Transform batched RGB images as a grid of images.
 
@@ -98,7 +138,7 @@ def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
     -------
     img_grid : np.ndarray
         Grid of images of type np.uint8 with shape
-        (height*int(sqrt(batch_size)), width*int(sqrt(batch_size), 3).
+        ((height+2)*int(sqrt(batch_size)), (width+2)*int(sqrt(batch_size), 3).
         Note that remaining images are discarded!
     """
     # Pad images with white pixels

@@ -8,10 +8,11 @@ import torch
 from einops import rearrange
 from torch import nn
 
+import utils.data.process as proc
+import utils.gan.attention as att
+import utils.gan.initialization as init
+import utils.gan.spectral as spec
 from utils.configs import ConfigType
-from utils.data.process import color_data_np
-from utils.gan.attention import SelfAttention, TensorAndAttn
-from utils.gan.spectral import SpectralNorm
 
 
 class UncondSADiscriminator(nn.Module):
@@ -49,8 +50,9 @@ class UncondSADiscriminator(nn.Module):
             setattr(self, f'conv{i}', block)
 
             if make_attention[i - 1]:
-                attn = SelfAttention(in_dim=current_dim,
-                                     attention_config=model_config.attention)
+                attn = att.SelfAttention(
+                    in_dim=current_dim,
+                    attention_config=model_config.attention)
                 # Add self-attention to the model
                 setattr(self, f'attn{attn_id}', attn)
                 attn_id += 1
@@ -58,24 +60,7 @@ class UncondSADiscriminator(nn.Module):
         self.conv_last = nn.Sequential(
             nn.Conv2d(current_dim, 1, kernel_size=4),)
 
-        self.init_weights(model_config.init_method)
-
-    def init_weights(self, init_method: str) -> None:
-        """Initialize weights."""
-        if init_method == 'default':
-            return
-        for _, param in self.named_parameters():
-            if param.ndim == 4:
-                if init_method == 'orthogonal':
-                    nn.init.orthogonal_(param)
-                elif init_method == 'glorot':
-                    nn.init.xavier_uniform_(param)
-                elif init_method == 'normal':
-                    nn.init.normal_(param, 0, 0.02)
-                else:
-                    raise ValueError(
-                        f'Unknown init method: {init_method}. Should be one '
-                        'of "default", "orthogonal", "glorot", "normal".')
+        init.init_weights(self, model_config.init_method)
 
     def _make_disc_block(self, in_channels: int, out_channels: int,
                          kernel_size: int, stride: int,
@@ -83,7 +68,7 @@ class UncondSADiscriminator(nn.Module):
         """Return a self-attention discriminator block."""
         layers = []
         layers.append(
-            SpectralNorm(
+            spec.SpectralNorm(
                 nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,
                           stride=stride, padding=padding)))
         layers.append(nn.LeakyReLU(0.1))
@@ -91,7 +76,7 @@ class UncondSADiscriminator(nn.Module):
         return module
 
     def forward(self, x: torch.Tensor,
-                with_attn: bool = False) -> TensorAndAttn:
+                with_attn: bool = False) -> att.TensorAndAttn:
         """Forward pass.
 
         Parameters
@@ -159,8 +144,9 @@ class UncondSAGenerator(nn.Module):
             setattr(self, f'conv{i}', block)
 
             if make_attention[i - 1]:
-                attn = SelfAttention(in_dim=current_dim,
-                                     attention_config=model_config.attention)
+                attn = att.SelfAttention(
+                    in_dim=current_dim,
+                    attention_config=model_config.attention)
                 # Add self-attention to the model
                 setattr(self, f'attn{attn_id}', attn)
                 attn_id += 1
@@ -169,24 +155,7 @@ class UncondSAGenerator(nn.Module):
             nn.ConvTranspose2d(current_dim, n_classes, kernel_size=4, stride=2,
                                padding=1))
 
-        self.init_weights(model_config.init_method)
-
-    def init_weights(self, init_method: str) -> None:
-        """Initialize weights."""
-        if init_method == 'default':
-            return
-        for _, param in self.named_parameters():
-            if param.ndim == 4:
-                if init_method == 'orthogonal':
-                    nn.init.orthogonal_(param)
-                elif init_method == 'glorot':
-                    nn.init.xavier_uniform_(param)
-                elif init_method == 'normal':
-                    nn.init.normal_(param, 0, 0.02)
-                else:
-                    raise ValueError(
-                        f'Unknown init method: {init_method}. Should be one '
-                        'of "default", "orthogonal", "glorot", "normal".')
+        init.init_weights(self, model_config.init_method)
 
     def _make_gen_block(self, in_channels: int, out_channels: int,
                         kernel_size: int, stride: int,
@@ -194,7 +163,7 @@ class UncondSAGenerator(nn.Module):
         """Return a self-attention generator block."""
         layers = []
         layers.append(
-            SpectralNorm(
+            spec.SpectralNorm(
                 nn.ConvTranspose2d(in_channels, out_channels,
                                    kernel_size=kernel_size, stride=stride,
                                    padding=padding)))
@@ -203,7 +172,7 @@ class UncondSAGenerator(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, z: torch.Tensor,
-                with_attn: bool = False) -> TensorAndAttn:
+                with_attn: bool = False) -> att.TensorAndAttn:
         """Forward pass.
 
         Parameters
@@ -242,7 +211,7 @@ class UncondSAGenerator(nn.Module):
         # Quantize + color generated data
         out = torch.argmax(out, dim=1)
         out = out.detach().cpu().numpy()
-        images = color_data_np(out)
+        images = proc.color_data_np(out)
         if with_attn:
             return images, attn_list
         return images, []

@@ -7,9 +7,8 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
+import utils.data.process as proc
 from utils.configs import Configuration
-from utils.data.process import (random_crop_np, resize_np, sample_pixels_2d_np,
-                                to_one_hot_np)
 
 
 class DatasetUncond2D(Dataset):
@@ -45,7 +44,7 @@ class DatasetUncond2D(Dataset):
         dataset = np.load(dataset_path)
         self.n_classes = np.max(dataset) + 1
         # One hot encoding
-        self.dataset = to_one_hot_np(dataset).astype(np.float32)
+        self.dataset = proc.to_one_hot_np(dataset).astype(np.float32)
 
     def __len__(self) -> int:
         """Length of the dataset."""
@@ -58,9 +57,9 @@ class DatasetUncond2D(Dataset):
                 or data.shape[1] != self.data_size):
             # Resize to min_dim = data_size by preserving
             # the aspect ratio and normalization
-            data = resize_np(data, self.data_size)
+            data = proc.resize_np(data, self.data_size)
             # Random crop to fit the size (data_size, data_size)
-            data = random_crop_np(data, self.data_size)
+            data = proc.random_crop_np(data, self.data_size)
         if self.augmentation_fn is not None:
             data = self.augmentation_fn(data)
         # Chanel first
@@ -118,7 +117,7 @@ class DatasetCond2D(Dataset):
         dataset = np.load(dataset_path)
         self.n_classes = np.max(dataset) + 1
         # One hot encoding
-        self.dataset = to_one_hot_np(dataset).astype(np.float32)
+        self.dataset = proc.to_one_hot_np(dataset).astype(np.float32)
 
     def __len__(self) -> int:
         """Length of the dataset."""
@@ -131,13 +130,13 @@ class DatasetCond2D(Dataset):
                 or data.shape[1] != self.data_size):
             # Resize to min_dim = data_size by preserving
             # the aspect ratio and normalization
-            data = resize_np(data, self.data_size)
+            data = proc.resize_np(data, self.data_size)
             # Random crop to fit the size (data_size, data_size)
-            data = random_crop_np(data, self.data_size)
+            data = proc.random_crop_np(data, self.data_size)
         if self.augmentation_fn is not None:
             data = self.augmentation_fn(data)
-        pixel_maps_np = sample_pixels_2d_np(data, self.n_pixels,
-                                            self.pixel_size)
+        pixel_maps_np = proc.sample_pixels_2d_np(data, self.n_pixels,
+                                                 self.pixel_size)
         # Chanel first
         data = np.transpose(data, (2, 0, 1))
         pixel_maps_np = np.transpose(pixel_maps_np, (2, 0, 1))

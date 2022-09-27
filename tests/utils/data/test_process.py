@@ -6,9 +6,9 @@ import pytest_check as check
 from skimage.measure import label
 
 from tests.utils.conftest import check_allclose
-from utils.data.process import (color_data_np, random_crop_np, resize_np,
-                                sample_pixels_2d_np, to_img_grid,
-                                to_one_hot_np)
+from utils.data.process import (color_data_np, continuous_color_data_np,
+                                random_crop_np, resize_np, sample_pixels_2d_np,
+                                to_img_grid, to_one_hot_np)
 
 
 @pytest.fixture
@@ -77,6 +77,16 @@ def test_color_data_np(data_int: np.ndarray) -> None:
     data_int_sup[0, 0] = 20
 
     color_data = color_data_np(data_int_sup)
+    check.equal(color_data.shape, (4, 5, 3))
+    check.equal(color_data.dtype, np.uint8)
+    check.greater_equal(np.min(color_data), 0)
+    check.less_equal(np.max(color_data), 255)
+
+
+def test_continuous_color_data_np(data_one_hot: np.ndarray) -> None:
+    """Test continuous_color_data_np."""
+    cont_data_on_hot = np.where(data_one_hot == 1, 0.8, 0.2)
+    color_data = continuous_color_data_np(cont_data_on_hot)
     check.equal(color_data.shape, (4, 5, 3))
     check.equal(color_data.dtype, np.uint8)
     check.greater_equal(np.min(color_data), 0)

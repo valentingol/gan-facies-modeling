@@ -325,8 +325,7 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     return w_dists, other_metrics
 
 
-def print_metrics(metrics: MetricsType,
-                  step: Optional[Union[int, None]] = None) -> None:
+def print_metrics(metrics: MetricsType, step: Optional[int] = None) -> None:
     """Print metrics witch colored table."""
     console = Console()
     title = 'Wasserstein dists' if step is None else f'Metrics (step {step})'

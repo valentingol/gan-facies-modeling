@@ -3,6 +3,7 @@
 import numpy as np
 import pytest_check as check
 import torch
+from pytest_mock import MockerFixture
 from skimage.measure import label
 
 from utils.conditioning import colorize_pixel_map, generate_pixel_maps
@@ -46,10 +47,17 @@ def test_generate_pixel_maps() -> None:
                             data_size=32)
 
 
-def test_colorize_pixel_map() -> None:
+def test_colorize_pixel_map(mocker: MockerFixture) -> None:
     """Test colorize_pixel_map."""
+    mocker.patch('utils.data.process.color_data_np',
+                 return_value=np.random.randint(0, 256, (25, 32, 32, 3),
+                                                dtype=np.uint8))
+    mocker.patch('utils.data.process.to_img_grid',
+                 return_value=np.random.randint(0, 256, (34 * 5, 34 * 5, 3),
+                                                dtype=np.uint8))
     pixel_maps = generate_pixel_maps(batch_size=25, n_classes=3, n_pixels=5,
                                      pixel_size=3, data_size=32)
     color_pixel_maps = colorize_pixel_map(pixel_maps)
+    check.is_instance(color_pixel_maps, np.ndarray)
     expected_size = 5 * (32 + 2)
-    check.equal(color_pixel_maps.size, (expected_size, expected_size))
+    check.equal(color_pixel_maps.shape, (expected_size, expected_size, 3))

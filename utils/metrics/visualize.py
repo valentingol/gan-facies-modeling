@@ -19,11 +19,11 @@ def plot_boxes(indicators_list: List[Dict[str, List[float]]],
         not necessarily the same over the different dicts.
     indicator_names : list of strs or None, optional
         List of names for the indicators. If None, the names will
-        be the number of the indicator in the list.
+        be the number of the indicator in the list. By default, None.
     indicator_colors : list of strs or None, optional
         List of colors for the boxes representing the indicators.
-        If None, the colors will
-        be white for all indicators.
+        If None, the colors will be white for all indicators.
+        By default, None.
 
     Note
     ----

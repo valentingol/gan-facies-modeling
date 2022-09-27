@@ -1,17 +1,18 @@
 # Code adapted from https://github.com/heykeetae/Self-Attention-GAN
 """Modules for SAGAN model."""
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
 from einops import rearrange
 from torch import nn
 
+import utils.data.process as proc
+import utils.gan.attention as att
+import utils.gan.initialization as init
+import utils.gan.spectral as spec
 from utils.configs import ConfigType
-from utils.data.process import color_data_np
-from utils.gan.attention import SelfAttention, TensorAndAttn
-from utils.gan.spectral import SpectralNorm
 
 
 class CondSAGenerator(nn.Module):
@@ -58,8 +59,9 @@ class CondSAGenerator(nn.Module):
             setattr(self, f'conv_cond{i}', cond_block)
 
             if make_attention[i - 1]:
-                attn = SelfAttention(in_dim=current_dim,
-                                     attention_config=model_config.attention)
+                attn = att.SelfAttention(
+                    in_dim=current_dim,
+                    attention_config=model_config.attention)
                 # Add self-attention to the model
                 setattr(self, f'attn{attn_id}', attn)
                 attn_id += 1
@@ -68,24 +70,7 @@ class CondSAGenerator(nn.Module):
             nn.ConvTranspose2d(current_dim, n_classes, kernel_size=4, stride=2,
                                padding=1))
 
-        self.init_weights(model_config.init_method)
-
-    def init_weights(self, init_method: str) -> None:
-        """Initialize weights."""
-        if init_method == 'default':
-            return
-        for _, param in self.named_parameters():
-            if param.ndim == 4:
-                if init_method == 'orthogonal':
-                    nn.init.orthogonal_(param)
-                elif init_method == 'glorot':
-                    nn.init.xavier_uniform_(param)
-                elif init_method == 'normal':
-                    nn.init.normal_(param, 0, 0.02)
-                else:
-                    raise ValueError(
-                        f'Unknown init method: {init_method}. Should be one '
-                        'of "default", "orthogonal", "glorot", "normal".')
+        init.init_weights(self, model_config.init_method)
 
     def _make_gen_block(self, in_channels: int, out_channels: int,
                         kernel_size: int, stride: int,
@@ -93,7 +78,7 @@ class CondSAGenerator(nn.Module):
         """Return a self-attention generator block."""
         layers = []
         layers.append(
-            SpectralNorm(
+            spec.SpectralNorm(
                 nn.ConvTranspose2d(in_channels, out_channels,
                                    kernel_size=kernel_size, stride=stride,
                                    padding=padding)))
@@ -130,7 +115,7 @@ class CondSAGenerator(nn.Module):
 
     def forward(self, z: torch.Tensor,
                 pixel_maps: torch.Tensor,
-                with_attn: bool = False) -> TensorAndAttn:
+                with_attn: bool = False) -> att.TensorAndAttn:
         """Forward pass.
 
         Parameters
@@ -152,20 +137,20 @@ class CondSAGenerator(nn.Module):
             Attention maps from all dot product attentions
             of shape (B, W*H~queries, W*H~keys).
         """
-        att_list: List[torch.Tensor] = []
+        attn_list: List[torch.Tensor] = []
         x = rearrange(z, '(B h w) z_dim -> B z_dim h w', h=1, w=1)
         for i in range(1, self.num_blocks):
             x = getattr(self, f'conv{i}')(x)
             x_cond = getattr(self, f'conv_cond{i}')(pixel_maps)
             x = torch.cat([x, x_cond], dim=1)
             if self.make_attention[i - 1]:
-                x, att = getattr(self, f'attn{len(att_list) + 1}')(x)
-                att_list.append(att)
+                x, attn = getattr(self, f'attn{len(attn_list) + 1}')(x)
+                attn_list.append(attn)
         # Here x is of shape (B, g_conv_dim, H/2, W/2)
         x = self.conv_last(x)  # shape (B, n_classes, H, W)
         x = nn.Softmax(dim=1)(x)
         if with_attn:
-            return x, att_list
+            return x, attn_list
         return x
 
     def generate(self, z_input: torch.Tensor, pixel_maps: torch.Tensor,
@@ -176,7 +161,50 @@ class CondSAGenerator(nn.Module):
         # Quantize + color generated data
         out = torch.argmax(out, dim=1)
         out = out.detach().cpu().numpy()
-        images = color_data_np(out)
+        images = proc.color_data_np(out)
         if with_attn:
             return images, attn_list
         return images, []
+
+    def proba_map(self, z_input: torch.Tensor, pixel_map: torch.Tensor,
+                  batch_size: Optional[int] = None
+                  ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Return probability map (mean and std) from batch of noise.
+
+        Parameters
+        ----------
+        z_input : torch.Tensor
+            Batch of random input noise use for stochastic simulation.
+            Should be of shape (num_sample, z_dim).
+        pixel_map : torch.Tensor
+            Single pixel map used to condition the generator.
+            Should be of shape (num_classes, data_size, data_size)
+        batch_size : int | None, optional
+            Batch size to use for inference. If None, the length
+            of z_input is used. By default None.
+
+        Returns
+        -------
+        proba_mean : np.ndarray
+            Mean probability map of shape (data_size, data_size, n_classes).
+        proba_std : np.ndarray
+            Std probability map of shape (data_size, data_size, n_classes).
+        proba_color : np.ndarray
+            Colored mean probability map of shape (data_size, data_size, 3).
+        """
+        batch_size = batch_size or len(z_input)
+        pixel_maps = pixel_map.repeat(batch_size, 1, 1, 1)
+        out = []
+        for i in range(0, len(z_input), batch_size):
+            out.append(self.forward(z_input[i:i + batch_size], pixel_maps))
+        # out_tensor shape: (num_sample, num_classes, h, w)
+        out_tensor = torch.cat(out, dim=0)
+        # proba_mean/std shape: (num_classes, h, w)
+        proba_mean = torch.mean(out_tensor, dim=0)
+        proba_std = torch.std(out_tensor, dim=0)
+        proba_mean = rearrange(proba_mean, 'c h w -> h w c')
+        proba_std = rearrange(proba_std, 'c h w -> h w c')
+        proba_mean = proba_mean.detach().cpu().numpy()
+        proba_std = proba_std.detach().cpu().numpy()
+        proba_color = proc.continuous_color_data_np(proba_mean)
+        return proba_mean, proba_std, proba_color
