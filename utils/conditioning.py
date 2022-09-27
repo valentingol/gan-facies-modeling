@@ -5,9 +5,8 @@ from typing import List, Union
 import numpy as np
 import torch
 from einops import repeat
-from PIL import Image
 
-from utils.data.process import color_data_np, to_img_grid
+import utils.data.process as proc
 
 
 def generate_pixel_maps(batch_size: int, n_classes: int,
@@ -72,7 +71,7 @@ def generate_pixel_maps(batch_size: int, n_classes: int,
     return pixel_maps
 
 
-def colorize_pixel_map(pixel_maps: torch.Tensor) -> Image:
+def colorize_pixel_map(pixel_maps: torch.Tensor) -> np.ndarray:
     """Colorize pixel maps using PIL under grid format."""
     pixel_maps_np = pixel_maps.detach().cpu().numpy()
     pixel_maps_np = np.transpose(pixel_maps_np, (0, 2, 3, 1))
@@ -82,9 +81,8 @@ def colorize_pixel_map(pixel_maps: torch.Tensor) -> Image:
     pixel_maps_np[..., 0] = np.all(pixel_maps_np[..., 1:] == 0,
                                    axis=-1).astype(np.float32)
     pixel_maps_np = np.argmax(pixel_maps_np, axis=-1)
-    colored_pixel_maps = color_data_np(pixel_maps_np)
+    colored_pixel_maps = proc.color_data_np(pixel_maps_np)
     colored_pixel_maps *= mask_pixels[..., None]
 
-    colored_pixel_maps = to_img_grid(colored_pixel_maps)
-    colored_pixel_maps = Image.fromarray(colored_pixel_maps)
+    colored_pixel_maps = proc.to_img_grid(colored_pixel_maps)
     return colored_pixel_maps
