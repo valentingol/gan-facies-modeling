@@ -8,7 +8,7 @@ import torch
 from pytest_check import check_func
 from torch.utils.data import DataLoader
 
-from utils.configs import GlobalConfig
+from utils.configs import ConfigType, GlobalConfig
 from utils.data.data_loader import DistributedDataLoader
 
 
@@ -62,6 +62,22 @@ class DataLoader32(DistributedDataLoader):
                                            shuffle=True,
                                            num_workers=0,
                                            )
+
+
+class AttnMock(torch.nn.Module):
+    """Mock class for SelfAttention."""
+
+    def __init__(self, in_dim: int, attention_config: ConfigType):
+        """Init."""
+        # pylint: disable=unused-argument
+        super().__init__()
+        self.n_heads = attention_config.n_heads
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        attn_dim = x.shape[2] * x.shape[3]
+        attn = torch.zeros(x.shape[0], self.n_heads, attn_dim, attn_dim)
+        return x, attn
 
 
 @check_func
