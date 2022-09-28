@@ -7,6 +7,7 @@ from typing import Optional
 import numpy as np
 import torch
 from PIL import Image
+from thop import profile
 
 from utils.auxiliaries import set_global_seed
 from utils.conditioning import colorize_pixel_map, generate_pixel_maps
@@ -76,12 +77,17 @@ def test(config: ConfigType) -> None:
             colored_pixel_maps = colorize_pixel_map(pixel_maps)
             images, attn_list = generator.generate(z_input, pixel_maps,
                                                    with_attn=True)
+            # pylint: disable=unbalanced-tuple-unpacking
+            macs, _ = profile(generator, inputs=(z_input, pixel_maps))
+            print(f'MACs: {macs / 1e9:.2f}G')
             _, _, proba_map = generator.proba_map(z_input, pixel_maps[0])
     else:
         colored_pixel_maps = None
         proba_map = None
         with torch.no_grad():
             images, attn_list = generator.generate(z_input, with_attn=True)
+            # pylint: disable=unbalanced-tuple-unpacking
+            macs, _ = profile(generator, inputs=(z_input, pixel_maps))
 
     # Save and show sample images in a grid
     img_out_dir = osp.join(config.output_dir, config.run_name, 'samples')
@@ -109,6 +115,7 @@ def test(config: ConfigType) -> None:
     # Compute and print metrics
     metrics = evaluate(gen=generator, config=config, training=False, step=step,
                        save_json=False, save_csv=True)
+    print(f'MACs: {macs / 1e9:.2f}G')
     print("Metrics w.r.t training set:")
     print_metrics(metrics)
 

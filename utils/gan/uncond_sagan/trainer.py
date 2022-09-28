@@ -200,8 +200,12 @@ class UncondTrainerSAGAN(BaseTrainerGAN):
         device = idist.device()
         gen = UncondSAGenerator(n_classes=self.n_classes,
                                 model_config=self.config.model)
+        gen_n_params = sum(p.numel() for p in gen.parameters())
+        print(f'Generator num parameters: {gen_n_params / 1e6:.3f}M')
         disc = UncondSADiscriminator(n_classes=self.n_classes,
                                      model_config=self.config.model)
+        disc_n_params = sum(p.numel() for p in disc.parameters())
+        print(f'Discriminator num parameters: {disc_n_params / 1e6:.3f}M')
 
         g_optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad,
