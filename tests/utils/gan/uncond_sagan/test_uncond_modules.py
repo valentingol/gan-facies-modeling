@@ -42,7 +42,7 @@ def test_sa_discriminator_fwd(disc: UncondSADiscriminator) -> None:
     preds, att_list = disc(x, with_attn=True)
     check.equal(preds.shape, (1,))
     check.equal(len(att_list), 1)
-    check.equal(att_list[0].shape, (1, 4, 16, 16))
+    check.equal(att_list[0].shape, (1, 4, 1024, 1024))
     preds = disc(x, with_attn=False)
     check.is_instance(preds, torch.Tensor)
 
@@ -53,7 +53,7 @@ def test_sa_generator_fwd(gen: UncondSAGenerator) -> None:
     data, att_list = gen(z, with_attn=True)
     check.equal(data.shape, (1, 4, 64, 64))
     check.equal(len(att_list), 1)
-    check.equal(att_list[0].shape, (1, 4, 16, 16))
+    check.equal(att_list[0].shape, (1, 4, 1024, 1024))
     data = gen(z, with_attn=False)
     check.is_instance(data, torch.Tensor)
 
