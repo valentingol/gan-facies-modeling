@@ -20,6 +20,8 @@ Date: 2022-07-20
 
 Author: [github@Valentingol](https://github.com/valentingol)
 
+Work during my 5 months internship at [IFPEN](https://www.ifpenergiesnouvelles.com/).
+
 [![GitHub User followers](https://img.shields.io/github/followers/valentingol?label=Owner%20followers&style=social)](https://github.com/valentingol)
 [![GitHub User's User stars](https://img.shields.io/github/stars/valentingol?label=Owner%20Stars&style=social)](https://github.com/valentingol)
 
