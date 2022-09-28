@@ -27,9 +27,11 @@ class UncondSADiscriminator(nn.Module):
         num_blocks = datasize_to_num_blocks[model_config.data_size]
         self.num_blocks = num_blocks
         # make_attention[i] is True if adding self-attention
-        # to {n_block-i+1}-th block output
+        # to {num_blocks-i-1}-th block output in order to have symmetric
+        # attention structure in generator and discriminator
         make_attention = [
-            i + 1 in model_config.attn_layer_num for i in range(num_blocks)
+            num_blocks - i - 1 in model_config.attn_layer_num
+            for i in range(num_blocks)
         ]
         self.make_attention = make_attention
 
@@ -122,11 +124,9 @@ class UncondSAGenerator(nn.Module):
         num_blocks = datasize_to_num_blocks[model_config.data_size]
         self.num_blocks = num_blocks
         # make_attention[i] is True if adding self-attention
-        # to {num_blocks-i-1}-th block output in order to have symmetric
-        # attention structure in generator and discriminator
+        # to {i+1}-th block output
         make_attention = [
-            num_blocks - i - 1 in model_config.attn_layer_num
-            for i in range(num_blocks)
+            i + 1 in model_config.attn_layer_num for i in range(num_blocks)
         ]
         self.make_attention = make_attention
 
