@@ -4,6 +4,7 @@ config_save_path: res/configs/cond
 output_dir: res
 dataset_path: datasets/gansim_small.npy
 
+data.num_workers: 2
 model.data_size: 64
 
 training.total_step: 300
@@ -14,7 +15,8 @@ training.metric_step: 100
 clearml.use_clearml: False
 wandb.use_wandb: False
 
-model_config_path: configs/default/models/cond_sagan.yaml
+# Conditional architecture
+model.architecture: cond_sagan
 model.cond_dim_ratio: 8
 data.n_pixels_cond: 20
 data.pixel_size_cond: 1
