@@ -97,7 +97,7 @@ should be a Numpy (`.npy`) file containing a 3D ndarray with format
 facies, starting from 0. The number of facies is then `dataset.max() + 1`.
 
 Now you can simply run a train on the default dataset with unconditional SAGAN
-model using the following command:
+model using the following command in `gan_facies` folder:
 
 ```bash
 python apps/train.py
