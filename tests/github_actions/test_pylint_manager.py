@@ -6,7 +6,7 @@ from typing import Any
 
 import pytest_check as check
 
-from utils.github_actions.pylint_manager import check_output
+from github_actions.pylint_manager import check_output
 
 
 def test_check_output() -> None:
@@ -22,11 +22,11 @@ def test_check_output() -> None:
 
 def test_pylint_manager(capfd: Any) -> None:
     """Test pylint_manager script."""
-    run = os.system('python utils/github_actions/pylint_manager.py'
+    run = os.system('python github_actions/pylint_manager.py'
                     ' --score=9.0 --score_min=8.0')
     check.equal(run, 0)
     out, _ = capfd.readouterr()
     check.equal(out, '#ffff00\n')
-    run = os.system('python utils/github_actions/pydocstyle_manager.py'
+    run = os.system('python github_actions/pydocstyle_manager.py'
                     ' --score=7.0 --score_min=8.0')
     check.not_equal(run, 0)  # raise error

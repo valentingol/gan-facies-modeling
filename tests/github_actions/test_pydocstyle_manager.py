@@ -5,7 +5,7 @@ import sys
 
 import pytest_check as check
 
-from utils.github_actions.pydocstyle_manager import check_output
+from github_actions.pydocstyle_manager import check_output
 
 
 def test_check_output() -> None:
@@ -21,9 +21,9 @@ def test_check_output() -> None:
 
 def test_pydocstyle_manager() -> None:
     """Test pydocstyle_manager script."""
-    run = os.system('python utils/github_actions/pydocstyle_manager.py'
+    run = os.system('python github_actions/pydocstyle_manager.py'
                     ' --n_errors=0')
     check.equal(run, 0)  # raise no error
-    run = os.system('python utils/github_actions/pydocstyle_manager.py'
+    run = os.system('python github_actions/pydocstyle_manager.py'
                     ' --n_errors=1')
     check.not_equal(run, 0)  # raise error

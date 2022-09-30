@@ -2,7 +2,7 @@
 
 import pytest_check as check
 
-from utils.github_actions.color import score_to_hex_color
+from github_actions.color import score_to_hex_color
 
 
 def test_score_to_hex_color() -> None:
