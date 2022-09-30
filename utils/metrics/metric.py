@@ -100,13 +100,13 @@ def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
               f'Found {len(indicators_list_1)} and {len(indicators_list_2)}. '
               'This behavior is only expected for bad models '
               '(e.g. during unit tests). The indicators of missing classes '
-              'will be copy from the last one.')
+              'will be arbitrarily copy from the first values.')
         len_1, len_2 = len(indicators_list_1), len(indicators_list_2)
         if len_1 > len_2:
-            indicators_list_2 = (indicators_list_2 + [indicators_list_2[-1]] *
+            indicators_list_2 = (indicators_list_2 + [indicators_list_1[0]] *
                                  (len_1-len_2))
         else:
-            indicators_list_1 = (indicators_list_1 + [indicators_list_1[-1]] *
+            indicators_list_1 = (indicators_list_1 + [indicators_list_2[0]] *
                                  (len_2-len_1))
     metrics = {}
     for i, (indicators_1, indicators_2
