@@ -3,7 +3,7 @@
 import sys
 from typing import Tuple
 
-from utils.github_actions.color import score_to_hex_color
+from github_actions.color import score_to_hex_color
 
 
 def check_output() -> Tuple[float, float]:
