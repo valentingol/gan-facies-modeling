@@ -1,0 +1,42 @@
+# Use for unit tests (DO NOT DELETE if you want to run the unit tests)
+run_name: tmp_test
+config_save_path: tests/configs/runs/tmp_test/config
+dataset_path: 'tests/datasets/data32.npy'  # use custom simple dataset
+output_dir: res
+save_attn: True
+overwrite_indicators: True
+
+data.train_batch_size: 2
+data.test_batch_size: 3
+data.n_pixels_cond: 5
+
+model.architecture: cond_sagan
+model.cond_dim_ratio: 8
+model.attn_layer_num: [1, 2, 3]
+model.data_size: 32
+model.d_conv_dim: 8
+model.g_conv_dim: 8
+model.init_method: orthogonal
+model.attention.n_heads: 1
+model.attention.out_layer: True
+model.attention.qk_ratio: 8
+model.attention.v_ratio: 2
+
+training.adv_loss: wgan-gp
+training.ema_start_step: 0
+training.g_ema_decay: 0.999
+training.d_ema_decay: 0.999
+training.mixed_precision: True
+training.save_boxes: True
+
+training.log_step: 1
+training.metric_step: 4
+training.model_save_step: 2
+training.sample_step: 2
+training.total_step: 6
+
+clearml.use_clearml: False
+wandb.use_wandb: False
+
+metrics.connectivity: null
+metrics.unit_component_size: 4

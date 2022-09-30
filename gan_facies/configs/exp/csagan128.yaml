@@ -1,0 +1,24 @@
+# Overwrite default configs
+run_name: cond
+config_save_path: res/configs/cond
+output_dir: res
+dataset_path: datasets/gansim_small.npy
+
+data.num_workers: 2
+
+model.data_size: 128
+
+training.total_step: 1000000000
+training.sample_step: 200
+training.model_save_step: 1000
+training.metric_step: 200
+training.weight_decay: 0.03
+
+clearml.use_clearml: False
+wandb.use_wandb: False
+
+model_config_path: configs/default/models/cond_sagan.yaml
+model.cond_dim_ratio: 8
+data.n_pixels_cond: [5, 20]
+data.pixel_size_cond: 2
+training.cond_penalty: 0.25

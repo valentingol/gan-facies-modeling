@@ -1,0 +1,22 @@
+run_name: usagan128_gansim
+config_save_path: configs/runs/usagan128_gansim
+dataset_path: datasets/gansim.npy
+recover_model_step: 224000
+
+data.num_workers: 4
+data.train_batch_size: 64
+data.test_batch_size: 64
+
+model.data_size: 128
+
+training.total_step: 1000000000
+training.sample_step: 200
+training.model_save_step: 1000
+training.metric_step: 200
+training.weight_decay: 0.0
+
+clearml.use_clearml: False
+wandb.use_wandb: False
+
+data.n_pixels_cond: 10
+data.pixel_size_cond: 2

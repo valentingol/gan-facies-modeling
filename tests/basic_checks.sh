@@ -17,7 +17,7 @@ check_output() {
 
 # Checks
 echo "************** Unit tests **************"
-pytest --cov-report term-missing --cov=./utils tests/
+pytest --cov-report term-missing --cov=./gan_facies tests/
 check_output "Unit tests"
 
 echo "**************** Typing ****************"
