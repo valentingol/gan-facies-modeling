@@ -20,7 +20,9 @@ Date: 2022-07-20
 
 Author: [github@Valentingol](https://github.com/valentingol)
 
-Work during my 5 months internship at [IFPEN](https://www.ifpenergiesnouvelles.com/).
+Work during my 5 months internship at [IFPEN](https://www.ifpenergiesnouvelles.com/),
+supervised by [UVSQ](https://www.uvsq.fr/english)
+and financed by [DATAIA Paris Saclay](https://dataia.eu/en/dataia-paris-saclay-institute).
 
 [![GitHub User followers](https://img.shields.io/github/followers/valentingol?label=Owner%20followers&style=social)](https://github.com/valentingol)
 [![GitHub User's User stars](https://img.shields.io/github/stars/valentingol?label=Owner%20Stars&style=social)](https://github.com/valentingol)
