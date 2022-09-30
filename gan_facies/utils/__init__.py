@@ -1,4 +1,4 @@
-"""GitHub actions utilities.
+"""Utilities classes and functions.
 
 MIT License
 

@@ -1,4 +1,4 @@
-"""GitHub actions utilities.
+"""Tests for gan-facies.
 
 MIT License
 

@@ -1,4 +1,4 @@
-"""GitHub actions utilities.
+"""Unconditional SAGAN classes and functions.
 
 MIT License
 

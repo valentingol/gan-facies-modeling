@@ -1,4 +1,4 @@
-"""GitHub actions utilities.
+"""Metric and indicators functions.
 
 MIT License
 
@@ -23,3 +23,8 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
+
+from gan_facies.metrics.metric import (compute_save_indicators, evaluate,
+                                       print_metrics)
+
+__all__ = ['compute_save_indicators', 'evaluate', 'print_metrics']

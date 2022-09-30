@@ -1,4 +1,4 @@
-"""GitHub actions utilities.
+"""Base classes and functions for gan.
 
 MIT License
 
