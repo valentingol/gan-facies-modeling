@@ -6,7 +6,8 @@ import torch
 from pytest_mock import MockerFixture
 from skimage.measure import label
 
-from utils.conditioning import colorize_pixel_map, generate_pixel_maps
+from gan_facies.utils.conditioning import (colorize_pixel_map,
+                                           generate_pixel_maps)
 
 
 def test_generate_pixel_maps() -> None:
@@ -49,10 +50,10 @@ def test_generate_pixel_maps() -> None:
 
 def test_colorize_pixel_map(mocker: MockerFixture) -> None:
     """Test colorize_pixel_map."""
-    mocker.patch('utils.data.process.color_data_np',
+    mocker.patch('gan_facies.data.process.color_data_np',
                  return_value=np.random.randint(0, 256, (25, 32, 32, 3),
                                                 dtype=np.uint8))
-    mocker.patch('utils.data.process.to_img_grid',
+    mocker.patch('gan_facies.data.process.to_img_grid',
                  return_value=np.random.randint(0, 256, (34 * 5, 34 * 5, 3),
                                                 dtype=np.uint8))
     pixel_maps = generate_pixel_maps(batch_size=25, n_classes=3, n_pixels=5,

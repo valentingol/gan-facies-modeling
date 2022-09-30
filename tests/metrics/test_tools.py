@@ -7,12 +7,12 @@ import numpy as np
 import pytest
 import pytest_check as check
 
-from tests.utils.conftest import DataLoader32
-from tests.utils.metrics.test_metric import compute_save_indicators
-from utils.configs import ConfigType
-from utils.metrics.tools import (MetricsType, get_n_classes,
-                                 get_reference_indicators, save_metrics,
-                                 split_wass_dists)
+from gan_facies.metrics.metric import compute_save_indicators
+from gan_facies.metrics.tools import (MetricsType, get_n_classes,
+                                      get_reference_indicators, save_metrics,
+                                      split_wass_dists)
+from gan_facies.utils.configs import ConfigType
+from tests.conftest import DataLoader32
 
 
 @pytest.fixture

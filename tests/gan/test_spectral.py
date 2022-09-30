@@ -3,7 +3,7 @@
 import pytest_check as check
 import torch
 
-from utils.gan.spectral import SpectralNorm, l2normalize
+from gan_facies.gan.spectral import SpectralNorm, l2normalize
 
 
 def test_l2normalize() -> None:
@@ -17,8 +17,8 @@ def test_spectral_norm() -> None:
     module = torch.nn.Conv2d(3, 8, kernel_size=3)
     weights = module.weight.data
     spec_norm = SpectralNorm(module, weight_name='weight')
-    check.is_true(
-        spec_norm._are_made_params())  # pylint: disable=protected-access
+    # pylint: disable=protected-access
+    check.is_true(spec_norm._are_made_params())
     check.is_true(hasattr(module, 'weight_u'))
     check.is_true(hasattr(module, 'weight_v'))
     check.is_true(hasattr(module, 'weight_bar'))

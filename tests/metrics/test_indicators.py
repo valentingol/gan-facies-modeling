@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 import pytest_check as check
 
-from utils.metrics.indicators import compute_indicators
+from gan_facies.metrics.indicators import compute_indicators
 
 
 @pytest.fixture

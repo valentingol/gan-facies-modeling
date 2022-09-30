@@ -3,8 +3,8 @@
 import pytest_check as check
 import torch
 
-from utils.configs import ConfigType
-from utils.gan.attention import SelfAttention
+from gan_facies.gan.attention import SelfAttention
+from gan_facies.utils.configs import ConfigType
 
 
 def test_self_attention(configs: ConfigType) -> None:

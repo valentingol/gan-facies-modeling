@@ -9,10 +9,10 @@ import pytest_check as check
 import torch
 from pytest_mock import MockerFixture
 
-from utils.configs import GlobalConfig
-from utils.gan.cond_sagan.modules import CondSAGenerator
-from utils.gan.cond_sagan.trainer import CondTrainerSAGAN
-from utils.gan.uncond_sagan.modules import UncondSADiscriminator
+from gan_facies.gan.cond_sagan.modules import CondSAGenerator
+from gan_facies.gan.cond_sagan.trainer import CondTrainerSAGAN
+from gan_facies.gan.uncond_sagan.modules import UncondSADiscriminator
+from gan_facies.utils.configs import GlobalConfig
 
 
 def test_train_generator(mocker: MockerFixture,

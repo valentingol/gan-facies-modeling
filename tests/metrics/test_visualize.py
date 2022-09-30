@@ -7,7 +7,7 @@ import pytest
 import pytest_check as check
 from matplotlib import pyplot as plt
 
-from utils.metrics.visualize import plot_boxes
+from gan_facies.metrics.visualize import plot_boxes
 
 
 @pytest.fixture

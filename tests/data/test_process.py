@@ -5,10 +5,11 @@ import pytest
 import pytest_check as check
 from skimage.measure import label
 
-from tests.utils.conftest import check_allclose
-from utils.data.process import (color_data_np, continuous_color_data_np,
-                                random_crop_np, resize_np, sample_pixels_2d_np,
-                                to_img_grid, to_one_hot_np)
+from gan_facies.data.process import (color_data_np, continuous_color_data_np,
+                                     random_crop_np, resize_np,
+                                     sample_pixels_2d_np, to_img_grid,
+                                     to_one_hot_np)
+from tests.conftest import check_allclose
 
 
 @pytest.fixture

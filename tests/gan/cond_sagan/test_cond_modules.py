@@ -8,18 +8,19 @@ import pytest_check as check
 import torch
 from pytest_mock import MockerFixture
 
-from tests.utils.conftest import AttnMock
-from utils.configs import GlobalConfig
-from utils.gan.cond_sagan.modules import CondSAGenerator
+from gan_facies.gan.cond_sagan.modules import CondSAGenerator
+from gan_facies.utils.configs import GlobalConfig
+from tests.conftest import AttnMock
 
 
 @pytest.fixture
 def gen(configs: Tuple[GlobalConfig, GlobalConfig],
         mocker: MockerFixture) -> CondSAGenerator:
     """Return generator for tests."""
-    mocker.patch('utils.gan.initialization.init_weights')
-    mocker.patch('utils.gan.attention.SelfAttention', AttnMock)
-    mocker.patch('utils.gan.spectral.SpectralNorm', side_effect=lambda x: x)
+    mocker.patch('gan_facies.gan.initialization.init_weights')
+    mocker.patch('gan_facies.gan.attention.SelfAttention', AttnMock)
+    mocker.patch('gan_facies.gan.spectral.SpectralNorm',
+                 side_effect=lambda x: x)
     config32, _ = configs
     return CondSAGenerator(n_classes=4, model_config=config32.model)
 
@@ -41,7 +42,7 @@ def test_sa_generator_fwd(gen: CondSAGenerator) -> None:
 def test_sa_generator_generate(gen: CondSAGenerator,
                                mocker: MockerFixture) -> None:
     """Test SAGenerator.generate."""
-    mocker.patch('utils.data.process.color_data_np',
+    mocker.patch('gan_facies.data.process.color_data_np',
                  return_value=np.random.randint(0, 256, (5, 32, 32, 3),
                                                 dtype=np.uint8))
     pixel_maps = torch.randint(0, 2, size=(5, 4, 32, 32), dtype=torch.float32)
@@ -58,7 +59,7 @@ def test_sa_generator_generate(gen: CondSAGenerator,
 def test_sa_generator_proba_map(gen: CondSAGenerator,
                                 mocker: MockerFixture) -> None:
     """Test SAGenerator.proba_map."""
-    mocker.patch('utils.data.process.continuous_color_data_np',
+    mocker.patch('gan_facies.data.process.continuous_color_data_np',
                  return_value=np.random.randint(0, 256, (32, 32, 3),
                                                 dtype=np.uint8))
     pixel_map = torch.randint(0, 2, size=(4, 32, 32), dtype=torch.float32)

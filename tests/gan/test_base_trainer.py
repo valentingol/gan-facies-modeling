@@ -13,9 +13,9 @@ from pytest_mock import MockerFixture
 from torch.nn import Module
 from torch.optim import Optimizer
 
-from tests.utils.conftest import DataLoader32, DataLoader64, check_exists
-from utils.configs import GlobalConfig
-from utils.gan.base_trainer import BaseTrainerGAN, BatchType
+from gan_facies.gan.base_trainer import BaseTrainerGAN, BatchType
+from gan_facies.utils.configs import GlobalConfig
+from tests.conftest import DataLoader32, DataLoader64, check_exists
 
 
 class TrainerTest(BaseTrainerGAN):
@@ -24,7 +24,7 @@ class TrainerTest(BaseTrainerGAN):
                         disc: Module, real_batch: BatchType,
                         device: torch.device
                         ) -> Tuple[Module, Optimizer, Dict[str, torch.Tensor]]:
-        """Train generator."""
+        """Trivial generator training."""
         return gen, g_optimizer, {'g_loss': (torch.tensor(1.), 'green', 6)}
 
     def train_discriminator(self, disc: Module, d_optimizer: Optimizer,
@@ -32,7 +32,7 @@ class TrainerTest(BaseTrainerGAN):
                             device: torch.device
                             ) -> Tuple[Module, Optimizer,
                                        Dict[str, torch.Tensor]]:
-        """Train generator."""
+        """Trivial discriminator training."""
         return disc, d_optimizer, {'d_loss': (torch.tensor(1.), 'red', 6)}
 
     def build_model_opt(self) -> Tuple[Module, Module, Optimizer, Optimizer]:
@@ -72,8 +72,8 @@ class TrainerTest(BaseTrainerGAN):
         d_optimizer = idist.auto_optim(d_optimizer)
         return gen, disc, g_optimizer, d_optimizer
 
-    def generate_data(self,
-                      gen: Module) -> Tuple[torch.Tensor, List[torch.Tensor]]:
+    def generate_data(self, gen: Module
+                      ) -> Tuple[torch.Tensor, List[torch.Tensor]]:
         """Generate data."""
         data = np.random.rand(64, 128, 128, 3) * 255
         data = data.astype(np.uint8)
@@ -84,9 +84,9 @@ class TrainerTest(BaseTrainerGAN):
 def build_trainers() -> Tuple[BaseTrainerGAN, BaseTrainerGAN]:
     """Return trainers with data size 32 and 64."""
     config32 = GlobalConfig().build_from_argv(
-        fallback='configs/unittest/data32.yaml')
+        fallback='tests/configs/data32.yaml')
     config64 = GlobalConfig().build_from_argv(
-        fallback='configs/unittest/data64.yaml')
+        fallback='tests/configs/data64.yaml')
     trainer32 = TrainerTest(DataLoader32(), config32)
     trainer64 = TrainerTest(DataLoader64(), config64)
     return trainer32, trainer64
@@ -98,8 +98,8 @@ def test_init() -> None:
     """Test init method."""
     build_trainers()
     # Remove tmp folders
-    if osp.exists('configs/runs/tmp_test'):
-        shutil.rmtree('configs/runs/tmp_test')
+    if osp.exists('tests/configs/runs/tmp_test'):
+        shutil.rmtree('tests/configs/runs/tmp_test')
 
 
 def test_train(mocker: MockerFixture) -> None:
@@ -107,9 +107,9 @@ def test_train(mocker: MockerFixture) -> None:
     # Mock third party functions
     w_dists = {'ind1_cls_1': 0.1, 'ind1_cls_2': 0.2, 'ind2_cls_1': 0.3,
                'ind2_cls_2': 0.4, 'global': 0.2}, {'cond_acc': 0.5}
-    mocker.patch('utils.metrics.compute_save_indicators')
-    mocker.patch('utils.metrics.evaluate', return_value=w_dists)
-    mocker.patch('utils.auxiliaries.get_delta_eta',
+    mocker.patch('gan_facies.metrics.compute_save_indicators')
+    mocker.patch('gan_facies.metrics.evaluate', return_value=w_dists)
+    mocker.patch('gan_facies.utils.auxiliaries.get_delta_eta',
                  return_value=('02h02m10s', '02h05m10s'))
 
     # Create random datasets
@@ -170,6 +170,6 @@ def test_train(mocker: MockerFixture) -> None:
     for key, val in expected_logs.items():
         check.is_true(np.isclose(logs[key], val), f'error for key {key}')
 
-    if osp.exists('configs/runs/tmp_test'):
-        shutil.rmtree('configs/runs/tmp_test')
+    if osp.exists('tests/configs/runs/tmp_test'):
+        shutil.rmtree('tests/configs/runs/tmp_test')
     shutil.rmtree('tests/datasets')

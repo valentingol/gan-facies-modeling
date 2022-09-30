@@ -7,19 +7,20 @@ import pytest_check as check
 import torch
 from pytest_mock import MockerFixture
 
-from tests.utils.conftest import AttnMock
-from utils.configs import GlobalConfig
-from utils.gan.uncond_sagan.modules import (UncondSADiscriminator,
-                                            UncondSAGenerator)
+from gan_facies.gan.uncond_sagan.modules import (UncondSADiscriminator,
+                                                 UncondSAGenerator)
+from gan_facies.utils.configs import GlobalConfig
+from tests.conftest import AttnMock
 
 
 @pytest.fixture
 def gen(configs: Tuple[GlobalConfig, GlobalConfig],
         mocker: MockerFixture) -> UncondSAGenerator:
     """Return generator for tests."""
-    mocker.patch('utils.gan.initialization.init_weights')
-    mocker.patch('utils.gan.attention.SelfAttention', AttnMock)
-    mocker.patch('utils.gan.spectral.SpectralNorm', side_effect=lambda x: x)
+    mocker.patch('gan_facies.gan.initialization.init_weights')
+    mocker.patch('gan_facies.gan.attention.SelfAttention', AttnMock)
+    mocker.patch('gan_facies.gan.spectral.SpectralNorm',
+                 side_effect=lambda x: x)
     _, config64 = configs
     return UncondSAGenerator(n_classes=4, model_config=config64.model)
 
@@ -28,9 +29,10 @@ def gen(configs: Tuple[GlobalConfig, GlobalConfig],
 def disc(configs: Tuple[GlobalConfig, GlobalConfig],
          mocker: MockerFixture) -> UncondSADiscriminator:
     """Return generator for tests."""
-    mocker.patch('utils.gan.initialization.init_weights')
-    mocker.patch('utils.gan.attention.SelfAttention', AttnMock)
-    mocker.patch('utils.gan.spectral.SpectralNorm', side_effect=lambda x: x)
+    mocker.patch('gan_facies.gan.initialization.init_weights')
+    mocker.patch('gan_facies.gan.attention.SelfAttention', AttnMock)
+    mocker.patch('gan_facies.gan.spectral.SpectralNorm',
+                 side_effect=lambda x: x)
     _, config64 = configs
     return UncondSADiscriminator(n_classes=4, model_config=config64.model)
 
@@ -61,7 +63,7 @@ def test_sa_generator_fwd(gen: UncondSAGenerator) -> None:
 def test_sa_generator_generate(gen: UncondSAGenerator,
                                mocker: MockerFixture) -> None:
     """Test SAGenerator.generate."""
-    mocker.patch('utils.data.process.color_data_np',
+    mocker.patch('gan_facies.data.process.color_data_np',
                  return_value=np.random.randint(0, 256, (1, 64, 64, 3),
                                                 dtype=np.uint8))
     z = torch.rand(size=(1, 128), dtype=torch.float32)

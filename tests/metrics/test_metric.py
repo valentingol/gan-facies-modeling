@@ -9,10 +9,10 @@ import pytest_check as check
 import torch
 from pytest_mock import MockerFixture
 
-from tests.utils.conftest import DataLoader32, DataLoader64, check_exists
-from utils.configs import GlobalConfig
-from utils.metrics.metric import (compute_save_indicators, evaluate,
-                                  print_metrics, wasserstein_distances)
+from gan_facies.metrics.metric import (compute_save_indicators, evaluate,
+                                       print_metrics, wasserstein_distances)
+from gan_facies.utils.configs import GlobalConfig
+from tests.conftest import DataLoader32, DataLoader64, check_exists
 
 
 def test_wasserstein_distances(capsys: Any) -> None:
@@ -84,7 +84,7 @@ def test_compute_save_indicators(capsys: Any) -> None:
     """Test compute_save_indicators."""
     data_loader = DataLoader32()
     config32 = GlobalConfig().build_from_argv(
-        fallback='configs/unittest/data32.yaml')
+        fallback='tests/configs/data32.yaml')
     data32 = np.random.randint(0, 3, size=(4, 32, 32), dtype=np.uint8)
     os.makedirs('tests/datasets', exist_ok=True)
     np.save('tests/datasets/data32.npy', data32)
@@ -113,7 +113,7 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig],
     w_dists = {'ind1_cls_1': 0.2, 'ind1_cls_2': 0.3,
                'ind2_cls_1': 0.4, 'ind2_cls_2': 0.5,
                'global': 0.5}
-    mocker.patch('utils.metrics.metric.wasserstein_distances',
+    mocker.patch('gan_facies.metrics.metric.wasserstein_distances',
                  return_value=(w_dists, ([], [])))
     data_loader32 = DataLoader32()
     data_loader64 = DataLoader64()
@@ -159,9 +159,7 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig],
     check_exists('res/tmp_test/metrics/metrics_step_8.json')
     check_exists('res/tmp_test/metrics/metrics_step_8.csv')
 
-    os.remove('tests/datasets/data32.npy')
-    os.remove('tests/datasets/data64.npy')
-
+    shutil.rmtree('tests/datasets')
     shutil.rmtree('res/tmp_test')
 
 

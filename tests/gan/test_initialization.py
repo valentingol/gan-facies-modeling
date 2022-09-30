@@ -4,7 +4,7 @@ import pytest_check as check
 import torch
 from torch import nn
 
-from utils.gan.initialization import init_weights
+from gan_facies.gan.initialization import init_weights
 
 
 def test_init_weights() -> None:

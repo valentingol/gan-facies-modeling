@@ -9,19 +9,21 @@ import pytest_check as check
 import torch
 from pytest_mock import MockerFixture
 
-from utils.configs import GlobalConfig
-from utils.data.data_loader import (DatasetCond2D, DatasetUncond2D,
-                                    DistributedDataLoader)
+from gan_facies.data.data_loader import (DatasetCond2D, DatasetUncond2D,
+                                         DistributedDataLoader)
+from gan_facies.utils.configs import GlobalConfig
 
 
 @pytest.fixture
 def dataset_path() -> str:
     """Return path to test dataset."""
-    return 'tests/utils/data/tmp_dataset.npy'
+    return 'tests/datasets/tmp_dataset.npy'
 
 
 def create_test_dataset(dataset_path: str) -> None:
     """Create test dataset (if not exist)."""
+    if not os.path.exists('tests/datasets'):
+        os.makedirs('tests/datasets')
     if not os.path.exists(dataset_path):
         dataset = np.random.randint(0, 5, size=(7, 5, 20), dtype=np.uint8)
         dataset[0, 0, 0] = 4  # Ensure that there are 5 classes
@@ -29,7 +31,7 @@ def create_test_dataset(dataset_path: str) -> None:
 
 
 def mock_process(mocker: MockerFixture) -> None:
-    """Mock functions from utils.data.process."""
+    """Mock functions from data.process."""
     data_one_hot = np.random.rand(7, 5, 20, 5).astype(np.float32)
     data_resize = np.random.rand(10, 20, 5).astype(np.float32)
     data_crop = np.random.rand(10, 10, 5).astype(np.float32)
@@ -38,10 +40,14 @@ def mock_process(mocker: MockerFixture) -> None:
     data_resize /= np.sum(data_resize, axis=-1, keepdims=True)
     data_crop /= np.sum(data_crop, axis=-1, keepdims=True)
 
-    mocker.patch('utils.data.process.to_one_hot_np', return_value=data_one_hot)
-    mocker.patch('utils.data.process.resize_np', return_value=data_resize)
-    mocker.patch('utils.data.process.random_crop_np', return_value=data_crop)
-    mocker.patch('utils.data.process.sample_pixels_2d_np', return_value=pixels)
+    mocker.patch('gan_facies.data.process.to_one_hot_np',
+                 return_value=data_one_hot)
+    mocker.patch('gan_facies.data.process.resize_np',
+                 return_value=data_resize)
+    mocker.patch('gan_facies.data.process.random_crop_np',
+                 return_value=data_crop)
+    mocker.patch('gan_facies.data.process.sample_pixels_2d_np',
+                 return_value=pixels)
 
 
 def test_dataset_uncond_2d(dataset_path: str,

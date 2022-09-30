@@ -7,7 +7,7 @@ import numpy as np
 import pytest_check as check
 import torch
 
-from utils.auxiliaries import get_delta_eta, set_global_seed
+from gan_facies.utils.auxiliaries import get_delta_eta, set_global_seed
 
 
 def test_set_global_seed() -> None:

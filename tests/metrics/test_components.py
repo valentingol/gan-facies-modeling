@@ -6,7 +6,8 @@ import numpy as np
 import pytest
 import pytest_check as check
 
-from utils.metrics.components import get_components_properties, get_neighbors
+from gan_facies.metrics.components import (get_components_properties,
+                                           get_neighbors)
 
 
 @pytest.fixture
