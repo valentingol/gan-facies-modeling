@@ -10,7 +10,8 @@ data.train_batch_size: 2
 data.test_batch_size: 3
 data.n_pixels_cond: 5
 
-model_config_path: gan_facies/configs/default/models/cond_sagan.yaml
+model.architecture: cond_sagan
+model.cond_dim_ratio: 8
 model.attn_layer_num: [1, 2, 3]
 model.data_size: 32
 model.d_conv_dim: 8
