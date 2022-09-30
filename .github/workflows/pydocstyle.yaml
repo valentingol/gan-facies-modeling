@@ -23,4 +23,4 @@ jobs:
       run: |
         n_errors=$(wc -l < pydocstyle.txt)
         echo "Number of errors in docstrings: $n_errors"
-        python utils/github_actions/pydocstyle_manager.py --n_errors=$n_errors
+        python github_actions/pydocstyle_manager.py --n_errors=$n_errors
