@@ -22,6 +22,7 @@ class CondSAGenerator(nn.Module):
         super().__init__()
         self.n_classes = n_classes
         self.data_size = model_config.data_size
+        self.z_dim = model_config.z_dim
         cond_dim_ratio = int(model_config.cond_dim_ratio)
 
         datasize_to_num_blocks = {32: 4, 64: 5, 128: 6, 256: 7}
