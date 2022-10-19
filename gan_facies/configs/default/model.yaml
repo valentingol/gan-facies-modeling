@@ -6,6 +6,7 @@ data_size: 64  # could be either 32, 64, 128 or 256
 # NOTE: the number of blocks depends on the data size only:
 # data_size 32: 4 blocks, data_size 64: 5 blocks, data_size 128: 6 blocks, data_size 256: 7 blocks
 attn_layer_num: [3, 4]
+sym_attn: True # if True, the attention layer indexes are n_blocks - attn_layer_num for the discriminator, otherwise attn_layer_num
 z_dim: 128
 g_conv_dim: 64  # number of channels before the last layer of the generator
 d_conv_dim: 64  # number of channels after the first layer of the discriminator
