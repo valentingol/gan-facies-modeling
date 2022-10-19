@@ -10,6 +10,7 @@ data.train_batch_size: 2
 data.test_batch_size: 3
 
 model.attn_layer_num: [4]
+model.sym_attn: False
 model.data_size: 64
 model.d_conv_dim: 12
 model.g_conv_dim: 12
