@@ -44,7 +44,7 @@ def test_sa_discriminator_fwd(disc: UncondSADiscriminator) -> None:
     preds, att_list = disc(x, with_attn=True)
     check.equal(preds.shape, (1,))
     check.equal(len(att_list), 1)
-    check.equal(att_list[0].shape, (1, 4, 1024, 1024))
+    check.equal(att_list[0].shape, (1, 4, 16, 16))
     preds = disc(x, with_attn=False)
     check.is_instance(preds, torch.Tensor)
 
