@@ -73,7 +73,7 @@ def generate_pixel_maps(batch_size: int, n_classes: int,
 
 def colorize_pixel_map(pixel_maps: torch.Tensor) -> np.ndarray:
     """Colorize pixel maps using PIL under grid format."""
-    pixel_maps_np = pixel_maps.detach().cpu().numpy()
+    pixel_maps_np = pixel_maps.detach().clone().cpu().numpy()
     pixel_maps_np = np.transpose(pixel_maps_np, (0, 2, 3, 1))
     mask_pixels = pixel_maps_np[..., 0].copy()
     mask_pixels = mask_pixels.astype(np.uint8)
