@@ -12,9 +12,11 @@ def to_one_hot_np(data: np.ndarray) -> np.ndarray:
     num_classes = np.max(data) + 1
     data_shape = data.shape
     data_flat = data.reshape(-1)
-    data_one_hot = np.zeros((data_flat.shape[0], num_classes))
-    data_one_hot[np.arange(data_flat.shape[0]), data_flat] = 1
+    # Cast in bool to save the memory
+    data_one_hot = np.eye(num_classes, dtype=bool)[data_flat]
     data_one_hot = data_one_hot.reshape(data_shape + (num_classes,))
+    # Recast to uint8
+    data_one_hot = data_one_hot.astype(dtype=np.uint8)
     return data_one_hot
 
 
