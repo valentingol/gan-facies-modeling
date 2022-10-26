@@ -105,7 +105,8 @@ def test_to_img_grid() -> None:
 def test_sample_pixels_2d_np(data_one_hot: np.ndarray) -> None:
     """Test sample_pixels_2d_np."""
     # Case n_pixels is int
-    pixel_maps = sample_pixels_2d_np(data_one_hot, n_pixels=2, pixel_size=2)
+    pixel_maps = sample_pixels_2d_np(data_one_hot, n_pixels=2, pixel_size=2,
+                                     n_classes=2)
     check.equal(pixel_maps.shape, (4, 5, 2))
     check.equal(pixel_maps.dtype, np.float32)
     check.equal(np.count_nonzero(pixel_maps[..., 0]), 2 * 2 * 2)
@@ -120,14 +121,22 @@ def test_sample_pixels_2d_np(data_one_hot: np.ndarray) -> None:
     check.is_true(((np.sum(pixel_maps[..., 1:], axis=-1) == 0.0)
                    | (np.sum(pixel_maps[..., 1:], axis=-1) == 1.0)).all())
 
+    # Case it missing classes in data
+    pixel_maps = sample_pixels_2d_np(data_one_hot, n_pixels=2, pixel_size=2,
+                                     n_classes=3)
+    check.equal(pixel_maps.shape, (4, 5, 3))
+    check.is_true((pixel_maps[..., 2] == 0).all())
+
     # Case n_pixels is list of length 2
-    pixel_maps = sample_pixels_2d_np(data_one_hot, [5, 10], pixel_size=1)
+    pixel_maps = sample_pixels_2d_np(data_one_hot, [5, 10], pixel_size=1,
+                                     n_classes=2)
     check.greater_equal(np.count_nonzero(pixel_maps[..., 0]), 5)
     check.less_equal(np.count_nonzero(pixel_maps[..., 0]), 10)
 
     # Case wrong n_pixels value or type
     with check.raises(ValueError):
         sample_pixels_2d_np(data_one_hot, n_pixels='5',  # type: ignore
-                            pixel_size=1)
+                            pixel_size=1, n_classes=2)
     with check.raises(ValueError):
-        sample_pixels_2d_np(data_one_hot, n_pixels=[5, 10, 15], pixel_size=1)
+        sample_pixels_2d_np(data_one_hot, n_pixels=[5, 10, 15], pixel_size=1,
+                            n_classes=2)
