@@ -68,11 +68,8 @@ for SAGAN part and
     https://ideas.repec.org/p/osf/eartha/fm24b.html)
 for conditional part) that also reconstructs input pixel maps
 
-Note that you can disable self-attention in the configurations (DCGAN architecture).
-
-**3D Models:**
-
-- soon 🚧
+Note that you can disable self-attention in the configurations (similar to
+DCGAN architecture).
 
 ## Quick start
 
@@ -213,21 +210,31 @@ Note:
 
 | <img src="./assets/images/gansim_real.png" width="512">
 |:--:|
-| **Real Images** (64 $\times$ 64)|
+| **Real Images**|
 
 | <img src="./assets/images/gansim_generated.png" width="512">
 |:--:|
 | **Generated Images** (128 $\times$ 128)|
 
-### Stanford-VI dataset (first part)
+### TI Analog dataset [Rongier, 2016]
 
-| <img src="./assets/images/stanfordp1_real.png" width="512">
+| <img src="./assets/images/rongier_real.png" width="512">
 |:--:|
 | **Real Images**|
 
-| <img src="./assets/images/stanfordp1_generated.png" width="512">
+| <img src="./assets/images/rongier_generated.png" width="512">
 |:--:|
-| **Generated Images**|
+| **Generated Images** (128 $\times$ 128)|
+
+### Stanford-VI dataset (deltas)
+
+| <img src="./assets/images/stanfordp3_real.png" width="512">
+|:--:|
+| **Real Images**|
+
+| <img src="./assets/images/stanfordp3_generated.png" width="512">
+|:--:|
+| **Generated Images** (128 $\times$ 128)|
 
 ## TODO list
 

@@ -135,8 +135,10 @@ class DatasetCond2D(Dataset):
             data = proc.random_crop_np(data, self.data_size)
         if self.augmentation_fn is not None:
             data = self.augmentation_fn(data)
-        pixel_maps_np = proc.sample_pixels_2d_np(data, self.n_pixels,
-                                                 self.pixel_size)
+        pixel_maps_np = proc.sample_pixels_2d_np(data,
+                                                 self.n_pixels,
+                                                 self.pixel_size,
+                                                 self.n_classes)
         # Chanel first
         data = np.transpose(data, (2, 0, 1))
         pixel_maps_np = np.transpose(pixel_maps_np, (2, 0, 1))
