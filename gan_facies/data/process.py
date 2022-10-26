@@ -155,7 +155,8 @@ def to_img_grid(batched_images: np.ndarray) -> np.ndarray:
 
 
 def sample_pixels_2d_np(data: np.ndarray, n_pixels: Union[int, List[int]],
-                        pixel_size: int) -> np.ndarray:
+                        pixel_size: int,
+                        n_classes: int) -> np.ndarray:
     """Sample pixel map similar to GANSim's 'well facies data' (2D case).
 
     Return a binary map containing n_classes values for each pixel.
@@ -176,6 +177,8 @@ def sample_pixels_2d_np(data: np.ndarray, n_pixels: Union[int, List[int]],
         will be sampled uniformly between the two values.
     pixel_size : int
         Size of the pixel to sample. The class is uniform in the pixel.
+    n_classes: int
+        Number of classes (in the entire dataset).
 
     Returns
     -------
@@ -184,7 +187,10 @@ def sample_pixels_2d_np(data: np.ndarray, n_pixels: Union[int, List[int]],
     """
     # First binarize the data to have binary pixel maps
     data = np.argmax(data, axis=-1)  # shape (h, w)
-    data = to_one_hot_np(data)  # shape (h, w, n_classes)
+    data = to_one_hot_np(data)
+    if data.shape[-1] < n_classes:  # if the sample data has not all classes
+        data = np.pad(data, ((0, 0), (0, 0), (0, n_classes - data.shape[-1])),
+                      constant_values=0)  # shape (h, w, n_classes)
     if isinstance(n_pixels, int):
         n_pixels_int = n_pixels
     elif isinstance(n_pixels, list) and len(n_pixels) == 2:
