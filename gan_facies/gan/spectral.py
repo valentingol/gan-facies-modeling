@@ -18,7 +18,7 @@ class SpectralNorm(nn.Module):
     """Spectral normalization."""
 
     def __init__(self, module: nn.Module, weight_name: str = 'weight',
-                 power_iterations: int = 1) -> None:
+                 power_iterations: int = 2) -> None:
         super().__init__()
         self.module = module
         self.weight_name = weight_name

@@ -170,7 +170,7 @@ def compute_save_indicators(data_loader: DistributedDataLoader,
                        f'{connectivity}_us{unit_component_size}_'
                        'indicators.json')
 
-    overwrite = config.overwrite_indicators
+    overwrite = config.metrics.overwrite_indicators
     if overwrite or not osp.exists(indicators_path):
         rprint(
             'Compute indicators from training dataset (used for '
@@ -188,7 +188,11 @@ def compute_save_indicators(data_loader: DistributedDataLoader,
         train_data = np.argmax(train_data, axis=1)
         train_data = train_data.astype(np.uint8)
         # Compute dataset indicators
-        indicators_list = compute_indicators(train_data, **config.metrics)
+        connectivity = config.metrics.connectivity
+        unit_component_size = config.metrics.unit_component_size
+        indicators_list = compute_indicators(
+            train_data, connectivity=connectivity,
+            unit_component_size=unit_component_size)
         # Save indicators in the same folder as the dataset
         indicators_dir, _ = os.path.split(indicators_path)
         os.makedirs(indicators_dir, exist_ok=True)
@@ -199,8 +203,9 @@ def compute_save_indicators(data_loader: DistributedDataLoader,
         rprint(
             'Indicators from training set already found at '
             f'{indicators_path}, they are re-used to compute metrics. '
-            'To recompute indicators, switch config.overwrite_indicators '
-            'to True.', style='cyan', highlight=False)
+            'To recompute indicators, switch '
+            'config.metrics.overwrite_indicators to True.', style='cyan',
+            highlight=False)
     return indicators_path
 
 

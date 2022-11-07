@@ -2,12 +2,11 @@
 # Configs passed in ignite.distributed.launcher.Parallel
 
 backend: nccl  # 'nccl' for GPU or 'gloo' for CPU
-nnodes: null  # number of machines to use
-nproc_per_node: null  # number of GPUs per machine
+nnodes: 1  # number of machines to use
+nproc_per_node: 1  # number of GPUs per machine
+init_method: null
 
 # Used if nnodes > 1 (multi-machine training)):
 node_rank: null
 master_addr: null
 master_port: null
-
-init_method: null

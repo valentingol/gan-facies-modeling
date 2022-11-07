@@ -7,7 +7,6 @@ interrupt_threshold: -1.0
 save_boxes: True  # save the metric boxes
 adv_loss: wgan-gp  # could be either 'wgan-gp' or 'hinge'
 mixed_precision: False  # if True, use float16 instead of float32 for training
-cond_penalty: 1000 # only used for conditional model, weight for conditional loss
 
 g_ema_decay: 1.0  # decay of generator's exponential moving average (1.0 = no decay)
 d_ema_decay: 1.0
@@ -20,7 +19,7 @@ beta1: 0.0
 beta2: 0.9
 weight_decay: 0.0
 
-# Step sizes
+# Numbers of steps
 total_step: 100000
 total_time: -1  # in sec, < 0 means no time limit
 ema_start_step: 0  # only used if g_ema_decay < 1.0
@@ -28,3 +27,5 @@ log_step: 10
 sample_step: 400  # save generated images every n steps
 model_save_step: 1200  # save generator and discriminator every n steps
 metric_step: 1200  # compute metrics every n steps
+
+cond_penalty: 10 # only used for conditional model, weight for conditional loss

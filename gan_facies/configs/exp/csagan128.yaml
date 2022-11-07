@@ -1,24 +1,30 @@
 # Overwrite default configs
-run_name: cond
+run_name: csagan_gansim
 config_save_path: res/configs/cond
 output_dir: res
 dataset_path: datasets/gansim_small.npy
 
+recover_model_step: 120000
+
 data.num_workers: 2
 
 model.data_size: 128
+model.g_conv_dim: 64
+model.d_conv_dim: 64
+model.attn_layer_num: [3]
+model.z_dim: 512
 
 training.total_step: 1000000000
 training.sample_step: 200
 training.model_save_step: 1000
 training.metric_step: 200
-training.weight_decay: 0.03
+training.weight_decay: 0.0
 
 clearml.use_clearml: False
 wandb.use_wandb: False
 
-model_config_path: configs/default/models/cond_sagan.yaml
+model.architecture: cond_sagan
 model.cond_dim_ratio: 8
-data.n_pixels_cond: [5, 20]
-data.pixel_size_cond: 2
+data.n_pixels_cond: [5, 10]
+data.pixel_size_cond: 6
 training.cond_penalty: 0.25

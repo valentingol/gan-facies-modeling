@@ -4,7 +4,7 @@ config_save_path: tests/configs/runs/tmp_test/config
 dataset_path: 'tests/datasets/data32.npy'  # use custom simple dataset
 output_dir: res
 save_attn: True
-overwrite_indicators: True
+metrics.overwrite_indicators: True
 
 data.train_batch_size: 2
 data.test_batch_size: 3

@@ -96,8 +96,8 @@ def test_compute_save_indicators(capsys: Any) -> None:
     check_exists(indicators_path)
 
     # Case with overwrite_indicators = False
-    config32.merge({'overwrite_indicators': False})
-    check.is_(config32.overwrite_indicators, False)
+    config32.merge({'metrics.overwrite_indicators': False})
+    check.is_(config32.metrics.overwrite_indicators, False)
     compute_save_indicators(data_loader, config32)
     captured = capsys.readouterr()
     check.is_in('re-used', captured.out)
