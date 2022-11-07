@@ -7,7 +7,7 @@ wandb: !wandb
   id: null  # used to resume a wandb run
 
   sweep_config_path: null  # null to not sweep (note: 'program' argument is not required)
-  sweep: null
+  sweep: null # do not overwrite
 
 clearml: !clearml
   use_clearml: False

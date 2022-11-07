@@ -1,0 +1,4 @@
+metrics: !metrics
+  overwrite_indicators: False
+  connectivity: null
+  unit_component_size: 6
