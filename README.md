@@ -174,6 +174,8 @@ to ensure that you can always recover the exact configuration used for the runs.
 The "hierarchy of merging" is also saved to understand quickly how the configuration
 was merged (with what experiment file(s) and what command line parameters).
 
+**A description of all configuration parameters is available in `CONFIG_SUMMARY.md`.**
+
 ## Experimental Tracking : Weights and Biases and ClearML support
 
 [Weights and Biases](https://wandb.ai/site) (WandB) and [ClearML](https://clear.ml/)
