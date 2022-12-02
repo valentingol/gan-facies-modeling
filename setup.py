@@ -12,7 +12,7 @@ README = (HERE / "README.md").read_text()
 # Installation
 config = {
     'name': 'gan-facies',
-    'version': '2.4.0',
+    'version': '2.5.0',
     'description': 'Facies modeling with GAN.',
     'long_description': README,
     'long_description_content_type': 'text/markdown',
