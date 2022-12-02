@@ -1,18 +1,16 @@
 """Tests for utils/post_process.py."""
 
+import numpy as np
 import pytest_check as check
 from pytest_mock import MockerFixture
 
-import numpy as np
-
 from gan_facies.utils.post_process import (clip_by_indicator,
-                                           clip_indicator_eval,
-                                           erode_dilate,
+                                           clip_indicator_eval, erode_dilate,
                                            fill_blank_neighborhood,
                                            postprocess_erode_dilate)
 
-
 # Clip by indicator functions
+
 
 def test_clip_by_indicator() -> None:
     """Test clip_by_indicator."""
