@@ -70,10 +70,12 @@ def test(config: ConfigType) -> None:
         with torch.no_grad():
             n_pixels = config.data.n_pixels_cond
             pixel_size = config.data.pixel_size_cond
+            pixel_classes = config.data.pixel_classes_cond
             data_size = config.model.data_size
             pixel_maps = generate_pixel_maps(
                 batch_size=batch_size, n_classes=n_classes,
-                n_pixels=n_pixels, pixel_size=pixel_size, data_size=data_size,
+                n_pixels=n_pixels, pixel_size=pixel_size,
+                pixel_classes=pixel_classes, data_size=data_size,
                 device=device)
             colored_pixel_maps = colorize_pixel_map(pixel_maps)
             images, attn_list = generator.generate(z_input, pixel_maps,
@@ -115,7 +117,7 @@ def test(config: ConfigType) -> None:
     compute_save_indicators(data_loader, config)
     # Compute and print metrics
     metrics = evaluate(gen=generator, config=config, training=False, step=step,
-                       save_json=False, save_csv=True)
+                       save_json=False, save_csv=True)[:2]
     print(f'MACs: {macs / 1e9:.2f}G')
     print("Metrics w.r.t training set:")
     print_metrics(metrics)
