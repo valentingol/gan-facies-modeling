@@ -10,12 +10,12 @@ from gan_facies.utils.configs import GlobalConfig, merge_configs
 def test_global_config() -> None:
     """Test GlobalConfig."""
     old_argv = sys.argv.copy()  # Save sys.argv
-    sys.argv = []  # Reset sys.argv
+    sys.argv = ['--training.total_time=3600']  # Try command line
     config = GlobalConfig.build_from_argv(
         fallback='tests/configs/data64.yaml')
     check.equal(config.run_name, 'tmp_test')
-    check.equal(config.model.data_size, 64)
-    check.equal(config.training.total_time, -1)
+    check.equal(config.model.g_conv_dim, 12)
+    check.equal(config.training.total_time, 3600)
     sys.argv = old_argv  # Restore sys.argv
 
 
