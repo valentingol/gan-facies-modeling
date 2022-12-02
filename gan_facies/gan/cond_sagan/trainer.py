@@ -281,10 +281,12 @@ class CondTrainerSAGAN(BaseTrainerGAN):
         """Generate pixel maps for evaluation."""
         n_pixels = self.config.data.n_pixels_cond
         pixel_size = self.config.data.pixel_size_cond
+        pixel_cls = self.config.data.pixel_classes_cond
         data_size = self.config.model.data_size
         self.fixed_pixel_maps = generate_pixel_maps(batch_size=self.batch_size,
                                                     n_classes=self.n_classes,
                                                     n_pixels=n_pixels,
                                                     pixel_size=pixel_size,
+                                                    pixel_classes=pixel_cls,
                                                     data_size=data_size,
                                                     device="cuda:0")
