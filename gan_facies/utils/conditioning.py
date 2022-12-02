@@ -1,6 +1,6 @@
 """Utilities for evaluation."""
 import random
-from typing import List, Union
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -9,11 +9,14 @@ from einops import repeat
 import gan_facies.data.process as proc
 
 
-def generate_pixel_maps(batch_size: int, n_classes: int,
+def generate_pixel_maps(batch_size: int,
+                        n_classes: int,
                         n_pixels: Union[int, List[int]],
-                        pixel_size: int, data_size: int,
+                        pixel_size: int,
+                        pixel_classes: Optional[List],
+                        data_size: int,
                         device: torch.device = "cpu") -> torch.Tensor:
-    """Generate pixel maps and eventually color them.
+    """Generate random pixel maps for conditioning.
 
     Parameters
     ----------
@@ -27,6 +30,9 @@ def generate_pixel_maps(batch_size: int, n_classes: int,
         will be sampled uniformly between the two values.
     pixel_size: int
         Size of the pixels to sample.
+    pixel_classes: list or None
+        If list, the class of the pixels to sample. If None, all classes
+        will be eventually sampled.
     data_size : int
         Size of the data.
     device : torch.device, optional
@@ -63,7 +69,16 @@ def generate_pixel_maps(batch_size: int, n_classes: int,
         pixels_h = [i*pixel_size + k for k in grid_h for i, _ in pixels_idx]
         pixels_w = [j*pixel_size + k for k in grid_w for _, j in pixels_idx]
         # Randomly sample classes and copy them on all big-pixels
-        classes = torch.randint(0, n_classes, (n_pixels_int, ), device=device)
+        if isinstance(pixel_classes, list):
+            classes_np = np.random.choice(pixel_classes, size=n_pixels_int,
+                                          replace=True)
+            classes = torch.from_numpy(classes_np).to(device)
+        elif pixel_classes is None:
+            classes = torch.randint(0, n_classes, (n_pixels_int, ),
+                                    device=device)
+        else:
+            raise ValueError("pixel_classes must be list or None, found "
+                             f"type {type(pixel_classes)}.")
         classes = repeat(classes, "n -> (h w n)", h=pixel_size, w=pixel_size)
         pixel_maps[i_batch, classes, pixels_h, pixels_w] = 1.0
         # Class 0 here is actually the mask of the pixels to keep
