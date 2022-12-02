@@ -114,7 +114,7 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig],
                'ind2_cls_1': 0.4, 'ind2_cls_2': 0.5,
                'global': 0.5}
     mocker.patch('gan_facies.metrics.metric.wasserstein_distances',
-                 return_value=(w_dists, ([], [])))
+                 return_value=(w_dists, ([{'ind': [2.2]}], [])))
     data_loader32 = DataLoader32()
     data_loader64 = DataLoader64()
     data32 = np.random.randint(0, 3, size=(4, 32, 32), dtype=np.uint8)
@@ -133,11 +133,18 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig],
     # Save indicators
     indicators_path = compute_save_indicators(data_loader32, config32)
 
-    _, other_metrics = evaluate(gen32, config32, training=False, step=13,
-                                indicators_path=indicators_path,
-                                save_json=True, save_csv=True,
-                                n_images=4)
+    _, other_metrics, data, ind = evaluate(gen32,
+                                           config32,
+                                           training=False,
+                                           step=13,
+                                           indicators_path=indicators_path,
+                                           save_json=True,
+                                           save_csv=True,
+                                           n_images=6)
     check.is_in('cond_acc', other_metrics)
+    check.is_instance(data, np.ndarray)
+    check.equal(data.shape, (6, 32, 32))
+    check.equal(ind[0]['ind'][0], 2.2)
     check_exists('res/tmp_test/metrics/test_metrics_step_13.json')
     check_exists('res/tmp_test/metrics/test_metrics_step_13.csv')
     os.remove(indicators_path)
@@ -152,9 +159,9 @@ def test_evaluate(configs: Tuple[GlobalConfig, GlobalConfig],
     # Save indicators
     indicators_path = compute_save_indicators(data_loader64, config64)
 
-    _, other_metrics = evaluate(gen64, config64, training=True, step=8,
-                                indicators_path=None, save_json=True,
-                                save_csv=True, n_images=4)
+    _, other_metrics, _, _ = evaluate(gen64, config64, training=True, step=8,
+                                      indicators_path=None, save_json=True,
+                                      save_csv=True, n_images=4)
     check.equal(other_metrics, {})
     check_exists('res/tmp_test/metrics/metrics_step_8.json')
     check_exists('res/tmp_test/metrics/metrics_step_8.csv')
