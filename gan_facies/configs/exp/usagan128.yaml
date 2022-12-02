@@ -8,6 +8,7 @@ data.train_batch_size: 64
 data.test_batch_size: 64
 
 model.data_size: 128
+model.sym_attn: False
 
 training.total_step: 1000000000
 training.sample_step: 200
@@ -20,3 +21,6 @@ wandb.use_wandb: False
 
 data.n_pixels_cond: 10
 data.pixel_size_cond: 2
+
+metrics.connectivity: 2
+metrics.unit_component_size: 8

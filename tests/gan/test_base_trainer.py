@@ -102,13 +102,17 @@ def test_init() -> None:
         shutil.rmtree('tests/configs/runs/tmp_test')
 
 
-def test_train(mocker: MockerFixture) -> None:
-    """Test train method."""
+def test_local_train(mocker: MockerFixture) -> None:
+    """Test local_train method."""
     # Mock third party functions
-    w_dists = {'ind1_cls_1': 0.1, 'ind1_cls_2': 0.2, 'ind2_cls_1': 0.3,
-               'ind2_cls_2': 0.4, 'global': 0.2}, {'cond_acc': 0.5}
+    metrics = ({'ind1_cls_1': 0.1, 'ind1_cls_2': 0.2, 'ind2_cls_1': 0.3,
+               'ind2_cls_2': 0.4, 'global': 0.2},
+               {'cond_acc': 0.5},
+               None,
+               None)
+
     mocker.patch('gan_facies.metrics.compute_save_indicators')
-    mocker.patch('gan_facies.metrics.evaluate', return_value=w_dists)
+    mocker.patch('gan_facies.metrics.evaluate', return_value=metrics)
     mocker.patch('gan_facies.utils.auxiliaries.get_delta_eta',
                  return_value=('02h02m10s', '02h05m10s'))
 
@@ -142,7 +146,9 @@ def test_train(mocker: MockerFixture) -> None:
             side_effect=side_effect_disc)
         trainer.train_generator = mocker.MagicMock(  # type: ignore
             side_effect=side_effect_gen)
-        trainer.train()
+        trainer.create_folders()
+        trainer.compute_train_indicators()
+        trainer.local_train(0)
         check_exists('res/tmp_test/models/generator_step_2.pth')
         check_exists('res/tmp_test/models/discriminator_step_2.pth')
         check_exists('res/tmp_test/samples/images_step_2.png')

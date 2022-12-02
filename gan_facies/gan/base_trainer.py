@@ -506,7 +506,7 @@ class BaseTrainerGAN(ABC):
         metrics = metr.evaluate(gen=gen, config=self.config, training=True,
                                 step=self.step + 1,
                                 indicators_path=self.indicators_path,
-                                save_json=False, save_csv=True)
+                                save_json=False, save_csv=True)[:2]
         print()
         return metrics
 

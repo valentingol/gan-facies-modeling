@@ -69,7 +69,7 @@ it is in model configuration (see below).**
 - `prefetch_factor` (default 2): number of batch to load with CPU while
   the GPU is running
 
-- `persistant_workers` (default False): whether copying worker at the end of epoc
+- `persistant_workers` (default False): whether copying worker at the end of epoch
   (False) or keep them (True)
 
 - `pin_memory` (default False): whether to pin memory on GPU for faster transfer
@@ -83,6 +83,9 @@ it is in model configuration (see below).**
   **Must be overwritten in conditional model.**
 
 - `pixel_size_cond` (default 6): size of the pixels to condition with
+
+- `pixel_classes_cond` (default None): list of classes of the pixels to
+  condition with. If None, all classes are used.
 
 ## Model
 

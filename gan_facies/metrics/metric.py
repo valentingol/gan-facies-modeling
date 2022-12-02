@@ -22,6 +22,8 @@ from gan_facies.utils.conditioning import generate_pixel_maps
 from gan_facies.utils.configs import ConfigType
 
 IndicatorsList = List[Dict[str, List[float]]]
+EvalOutType = Tuple[Dict[str, float], Dict[str, float], np.ndarray,
+                    List[Dict[str, List[float]]]]
 
 
 def wasserstein_distances(data1: Union[np.ndarray, IndicatorsList],
@@ -211,7 +213,7 @@ def compute_save_indicators(data_loader: DistributedDataLoader,
 
 def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
              indicators_path: Optional[str] = None, save_json: bool = False,
-             save_csv: bool = False, n_images: int = 1024) -> MetricsType:
+             save_csv: bool = False, n_images: int = 1024) -> EvalOutType:
     """Compute metrics from generator output.
 
     Compute Wasserstein distances between generated images indicators
@@ -245,6 +247,10 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
         Lower values means better similarity.
     other_metrics : Dict[str, float]
         Other metrics.
+    data_gen : np.ndarray
+        Generated images used to compute metrics.
+    indicators : IndicatorsList
+        List of indicators for the generated images.
     """
     gen.eval()
     device = next(gen.parameters()).device
@@ -252,7 +258,7 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
                   if training else config.data.test_batch_size)
     print(" -> Generating images for metrics calculation:", end='\r')
     # Generate more than n_images images to compute metrics
-    data_gen = []
+    data_gen_list = []
     with torch.no_grad():
         n_wrongs, total_pixels = 0, 0
         for k in range(max(1, int(np.ceil(n_images // batch_size)))):
@@ -267,11 +273,13 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
             if 'cond' in config.model.architecture:
                 n_pixels = config.data.n_pixels_cond
                 pixel_size = config.data.pixel_size_cond
+                pixel_classes = config.data.pixel_classes_cond
                 data_size = config.model.data_size
                 pixel_maps = generate_pixel_maps(batch_size=batch_size,
                                                  n_classes=gen.n_classes,
                                                  n_pixels=n_pixels,
                                                  pixel_size=pixel_size,
+                                                 pixel_classes=pixel_classes,
                                                  data_size=data_size,
                                                  device=device)
                 out = gen(z_input, pixel_maps=pixel_maps)
@@ -290,8 +298,9 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
             else:
                 out = gen(z_input)
                 out = torch.argmax(out, dim=1).detach().cpu().numpy()
+            data_gen_list.append(out)
+            del out
             torch.cuda.empty_cache()  # Free GPU memory
-            data_gen.append(out)
             print(
                 " -> Generating images for metrics calculation: "
                 f"{(k + 1)*batch_size} images", end='\r')
@@ -300,12 +309,12 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
     else:
         other_metrics = {}
     print()
-    data_gen_arr = np.vstack(data_gen)
-    data_gen_arr = data_gen_arr.astype(np.uint8)
+    data_gen = np.vstack(data_gen_list)
+    data_gen = data_gen.astype(np.uint8)
     print(" -> Computing indicators...")
 
     indicators_list_ref = get_reference_indicators(config, indicators_path,
-                                                   data_gen_arr)
+                                                   data_gen)
 
     metrics_save_dir = osp.join(config.output_dir, config.run_name, 'metrics')
     os.makedirs(metrics_save_dir, exist_ok=True)
@@ -324,12 +333,17 @@ def evaluate(gen: nn.Module, config: ConfigType, training: bool, step: int,
                                          f'test_metrics_step_{step}')
 
     # Compute metrics and save boxes locally if needed
-    w_dists = wasserstein_distances(data_gen_arr, indicators_list_ref,
-                                    save_boxes_path=save_boxes_path,
-                                    **config.metrics)[0]
+    unit_component_size = config.metrics.unit_component_size
+    connectivity = config.metrics.connectivity
+    w_dists, inds = wasserstein_distances(
+        data_gen, indicators_list_ref,
+        save_boxes_path=save_boxes_path,
+        connectivity=connectivity,
+        unit_component_size=unit_component_size)
+    indicators = inds[0]  # indicators for generated images
     save_metrics((w_dists, other_metrics), metrics_save_path,
                  save_json=save_json, save_csv=save_csv)
-    return w_dists, other_metrics
+    return w_dists, other_metrics, data_gen, indicators
 
 
 def print_metrics(metrics: MetricsType, step: Optional[int] = None) -> None:

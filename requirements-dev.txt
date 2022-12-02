@@ -6,6 +6,7 @@ jax[cpu]==0.3.15
 jaxlib==0.3.15
 matplotlib==3.5.2
 mypy==0.971
+opencv-python==4.6.0.66
 pandas==1.4.3
 Pillow==9.2.0
 pydocstyle==6.1.1
