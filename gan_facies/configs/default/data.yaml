@@ -17,5 +17,5 @@ pin_memory: False  # True to pin memory on GPU memory for faster transfer
 n_pixels_cond: null
 # pixel_size_cond: only used for conditional models, size of the pixels to sample
 pixel_size_cond: 6
-# pixel_classes_cond: list of classes of conditioning pixels (None for all classes)
-pixel_classes_cond: null
+# pixel_classes_cond: list of classes of conditioning pixels (empty for all classes)
+pixel_classes_cond: []
