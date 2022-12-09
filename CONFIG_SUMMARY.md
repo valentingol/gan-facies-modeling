@@ -84,8 +84,8 @@ it is in model configuration (see below).**
 
 - `pixel_size_cond` (default 6): size of the pixels to condition with
 
-- `pixel_classes_cond` (default None): list of classes of the pixels to
-  condition with. If None, all classes are used.
+- `pixel_classes_cond` (default []): list of classes of the pixels to
+  condition with. If empty, all classes are used.
 
 ## Model
 
