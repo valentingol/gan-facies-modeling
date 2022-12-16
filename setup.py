@@ -1,5 +1,6 @@
 """Setup of gan-face-editing."""
 
+import os
 import pathlib
 
 from setuptools import setup
@@ -7,7 +8,7 @@ from setuptools import setup
 HERE = pathlib.Path(__file__).parent
 
 # The text of the README file
-README = (HERE / "README.md").read_text()
+README = os.path.join(HERE.read_text('utf-8'), "README.md")
 
 # Installation
 config = {
