@@ -75,12 +75,16 @@ DCGAN architecture).
 
 ### Installation
 
-Install the module and dependencies in a virtual environment with Python 3.7-3.10:
+Install the module and dependencies in a virtual environment with Python 3.7-3.10.
+Using Linux or WSL is recommended to use [JAX](https://github.com/google/jax)
+for faster metrics computation but it is not mandatory.
 
 ```bash
 pip install -e .
 pip install -r requirements.txt
-# for developers only:
+# dependencies without JAX (windows users):
+pip install -r requirements-nojax.txt
+# for developers:
 pip install -r requirements-dev.txt
 ```
 
@@ -90,9 +94,6 @@ A small dataset is available by default in this repository. It contains 2000
 synthesized images representing some channels and 3 kind of facies and was
 generated in the [GANSim project](https://github.com/SuihongSong/GeoModeling_GANSim-2D_Condition_to_Well_Facies_and_Global_Features)
 (under [MIT license](./assets/third_party_licenses/GANSim%20MIT%20LICENSE)).
-More synthesized data are available
-[here](https://zenodo.org/record/3993791#.X1FQuMhKhaR). **If you use this dataset
-in your work, please cite the original authors.**
 
 You can simply run a train on the default dataset with unconditional SAGAN
 model using the following command in `gan_facies` folder:
@@ -103,6 +104,13 @@ python gan_facies/apps/train.py
 
 You can see the progress of the training in the terminal and the resulted
 images and trained networks in the `res` folder.
+
+More data are available in this repository. Simply extract `datasets/datasets.zip`
+in the `datasets` folder. It contains a bigger version of the GANSim dataset as
+well as [Rongier et al. (2016)](https://hal.archives-ouvertes.fr/hal-01351694/) dataset
+and [Stanford VI-E dataset](https://github.com/SCRFpublic/Stanford-VI-E/tree/master/Facies).
+
+**If you use this dataset in your work, please cite the original authors.**
 
 ## Use your own dataset
 
@@ -148,7 +156,7 @@ configuration, then set the generator learning rate to 0.001 and the generator
 random input dimension to 64:
 
 ```bash
-python gan_facies/apps/train.py --config gan_facies/configs/exp/my_config.yaml--training.g_lr=0.001\
+python gan_facies/apps/train.py --config gan_facies/configs/exp/my_config.yaml --training.g_lr=0.001\
  --model.z_dim=64
 ```
 

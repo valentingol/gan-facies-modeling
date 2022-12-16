@@ -1,5 +1,6 @@
 """Setup of gan-face-editing."""
 
+import os
 import pathlib
 
 from setuptools import setup
@@ -7,12 +8,12 @@ from setuptools import setup
 HERE = pathlib.Path(__file__).parent
 
 # The text of the README file
-README = (HERE / "README.md").read_text()
+README = os.path.join(HERE, "README.md")
 
 # Installation
 config = {
     'name': 'gan-facies',
-    'version': '2.5.0',
+    'version': '2.5.1',
     'description': 'Facies modeling with GAN.',
     'long_description': README,
     'long_description_content_type': 'text/markdown',
