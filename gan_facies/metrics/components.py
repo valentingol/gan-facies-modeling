@@ -4,14 +4,21 @@ These properties are used in utils/metrics/indicators.py.
 """
 from typing import Dict, List, Tuple
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 from skimage.measure import label, regionprops
 
-# Force Jax using CPU (using Jax with GPU will enter in conflict
-# with Pytorch that should use all VRAM available)
-jax.config.update('jax_platform_name', 'cpu')
+try:
+    import jax
+    import jax.numpy as jnp
+    JAX_AVAILABLE = True
+except ImportError:
+    jnp = np
+    JAX_AVAILABLE = False
+
+if JAX_AVAILABLE:
+    # Force Jax using CPU (using Jax with GPU will enter in conflict
+    # with Pytorch that should use all VRAM available)
+    jax.config.update('jax_platform_name', 'cpu')
 
 PropertiesType = Dict[str, np.ndarray]
 
@@ -149,9 +156,8 @@ def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
                   class_id: int) -> np.ndarray:
     """Compute perimeter or surface area."""
 
-    @jax.jit
-    def perimeter_component_jit(components: jnp.ndarray, i: jnp.ndarray,
-                                mask_ext: jnp.ndarray) -> jnp.ndarray:
+    def perimeter_component(components: jnp.ndarray, i: jnp.ndarray,
+                            mask_ext: jnp.ndarray) -> jnp.ndarray:
         """Compute perimeter of component i and stock it in perimeters."""
         axis = tuple(range(1, neighbors.ndim))
         mask_compo_i = jnp.expand_dims(components == i, axis=-1)
@@ -160,6 +166,9 @@ def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
                           jnp.array(0, dtype=jnp.uint8))
         perimeter = jnp.sum(index, axis=axis, dtype=jnp.int32)
         return perimeter
+
+    if JAX_AVAILABLE:
+        perimeter_component = jax.jit(perimeter_component)
 
     # connect_1: neighbors with 1-connectivity
     # 2D: 4-neighbors, 3D: 6-neighbors
@@ -176,9 +185,9 @@ def get_perimeter(components: np.ndarray, neighbors: np.ndarray,
     components = jnp.array(components, dtype=jnp.int32)
     mask_ext = jnp.array(mask_ext, dtype=jnp.uint8)
     for i in range(1, jnp.max(components) + 1):
-        perimeter = perimeter_component_jit(components,
-                                            jnp.array(i, dtype=jnp.uint8),
-                                            mask_ext)
+        perimeter = perimeter_component(components,
+                                        jnp.array(i, dtype=jnp.uint8),
+                                        mask_ext)
         perimeters.append(perimeter)
     perimeters_np = np.array(perimeters).T
     return perimeters_np  # shape (n_imgs, max_n_components), dtype=np.int32
