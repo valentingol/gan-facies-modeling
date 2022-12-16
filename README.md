@@ -107,7 +107,8 @@ images and trained networks in the `res` folder.
 
 More data are available in this repository. Simply extract `datasets/datasets.zip`
 in the `datasets` folder. It contains a bigger version of the GANSim dataset as
-well as [Rongier et al. (2016)](https://hal.archives-ouvertes.fr/hal-01351694/) dataset.
+well as [Rongier et al. (2016)](https://hal.archives-ouvertes.fr/hal-01351694/) dataset
+and [Stanford VI-E dataset](https://github.com/SCRFpublic/Stanford-VI-E/tree/master/Facies).
 
 **If you use this dataset in your work, please cite the original authors.**
 
