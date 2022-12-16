@@ -8,7 +8,7 @@ from setuptools import setup
 HERE = pathlib.Path(__file__).parent
 
 # The text of the README file
-README = os.path.join(HERE.read_text('utf-8'), "README.md")
+README = os.path.join(HERE, "README.md")
 
 # Installation
 config = {
