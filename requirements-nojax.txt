@@ -1,0 +1,13 @@
+# clearml==1.6.3  # if you want to use clearml
+einops==0.4.1
+matplotlib==3.5.2
+opencv-python==4.6.0.66
+pandas==1.4.3
+Pillow==9.2.0
+pytorch-ignite==0.4.9
+rich==12.5.1
+scikit_image==0.19.3
+thop
+torch==1.8.1
+# wandb==0.12.21  # if you want to use wandb
+yaecs==1.0.1
